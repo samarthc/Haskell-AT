@@ -78,6 +78,9 @@ diag2 [] = []
 diag2 [x] = [last x]
 diag2 (x:xs) = last x : diag2 (map init xs)
 
+-- side note: diag2 could be written as diag2 = reverse . diag1 . reverse to make it more efficient, but since
+-- the grid size here would be small (3x3) I chose to sacrifice speed for additional clarity
+
 diagonals :: [[a]] -> [[a]]
 diagonals ls = [diag1 ls, diag2 ls]
 
