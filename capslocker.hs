@@ -1,7 +1,5 @@
 import Data.Char
-import Control.Monad
 
-main = forever $ do
-    line <- getLine
-    let caps = map toUpper line
-    putStrLn caps
+main = do
+    contents <- getContents
+    putStr (map toUpper contents)
