@@ -11,7 +11,8 @@ main = do
         numToDo = zipWith (\n task -> show n ++ " - " ++ task) [1..] tasks
     putStrLn "Here are your todos: "
     putStr $ unlines numToDo
-    putStrLn "Which one do you want to delete? "
+    putStr "Which one do you want to delete? "
+    hFlush stdout
     
     strNum <- getLine
     let num = read strNum
