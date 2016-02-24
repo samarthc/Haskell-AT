@@ -44,7 +44,7 @@ and2 :: [Bool] -> Bool
 and2 xs = foldl (&&) True xs
 
 iterate'' :: (a -> a) -> a -> [a]
-iterate'' f a = f a : iterate'' f a
+iterate'' f a = a : iterate'' f (f a)
 
 splitAt'' :: (Integral a) => a -> [b] -> ([b],[b])
 splitAt'' _ [] = ([], [])
