@@ -1,6 +1,9 @@
 import System.IO
 import System.Directory
-import Data.List
+
+delete :: Int -> [a] -> [a]
+delete 0 a = tail a
+delete n (h:t) = [h] ++ delete (n-1) t
 
 main = do
     toDoHandle <- openFile "todo.txt" ReadMode
@@ -16,8 +19,7 @@ main = do
     
     strNum <- getLine
     let num = read strNum
-        delToDo = tasks!!(num-1)
-        modified = unlines $ delete delToDo tasks
+        modified = unlines $ delete (num-1) tasks
     
     hPutStr tempHandle modified
     
