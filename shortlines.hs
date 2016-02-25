@@ -1,6 +1,4 @@
-main = do
-    contents <- getContents
-    putStr shortLinesOnly
+main = interact shortLines
 
-shortLinesOnly :: String -> String
-shortLinesOnly = unlines . filter (\a -> length a < 10) . lines $ contents
+shortLines :: String -> String
+shortLines = unlines . filter (\a -> length a < 10) . lines
