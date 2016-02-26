@@ -13,6 +13,6 @@ eval acc next = next : acc
 evaluate :: String -> [String]
 evaluate exp = foldl eval [] . words $ exp
 
-result :: String -> Int
+result :: (Num a, Read a) => String -> a
 result =  read . sing . evaluate
     where sing [x] = x
