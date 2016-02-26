@@ -11,7 +11,7 @@ eval (x:y:rest) "^" = show (read y ^ read x) : rest
 eval acc next = next : acc
 
 evaluate :: String -> [String]
-evaluate exp = foldl eval [] . words $ exp
+evaluate = foldl eval [] . words
 
 result :: (Num a, Read a) => String -> a
 result =  read . sing . evaluate
