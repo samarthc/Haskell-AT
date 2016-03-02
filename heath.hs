@@ -1,8 +1,21 @@
+import Data.List
+main = do
+    contents <- getContents
+    let system = map fromList . groupsOf 3 . map read . lines $ contents
+        path = optimalPath system
+    putStrLn $ "The path with shortest travel time is (C stands for a crossover) " ++ concatMap (show . fst) path
+    putStrLn $ "The travel time is " ++ (show . sum . map snd $ path)
+
+groupsOf :: Int -> [a] -> [[a]]
+groupsOf 0 _ = undefined
+groupsOf _ [] = []
+groupsOf n xs = take n xs : groupsOf n (drop n xs)
+
 data Section = Section {toA :: Int, toB :: Int, cross :: Int} deriving (Show)
 type RoadSystem = [Section]
 
-heathrowToLondon :: RoadSystem
-heathrowToLondon = [Section 50 10 30, Section 5 90 20, Section 40 2 25, Section 10 8 0]
+fromList :: [Int] -> Section
+fromList [a,b,c] = Section a b c
 
 data Label = A | B | C deriving (Show)
 type Path = [(Label, Int)]
