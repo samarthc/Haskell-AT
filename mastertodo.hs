@@ -8,7 +8,7 @@ delete 0 a = tail a
 delete n (h:t) = [h] ++ delete (n-1) t
 
 dispatch :: [(String, [String] -> IO ())]
-dispatch = [("add", add) , ("view", view), ("remove", remove)]
+dispatch = [("add", add) , ("view", view), ("remove", remove), ("bump", bump)]
 
 main = do
     (command:args) <- getArgs
@@ -37,6 +37,25 @@ remove [path, strNum] = do
         modified = delete (num - 1) tasks
     
     hPutStr tempHandle $ unlines modified
+    
+    hClose tempHandle
+    hClose handle
+    
+    removeFile path
+    renameFile tempName path
+
+bump :: [String] -> IO ()
+bump [path, strNum] = do
+    handle <- openFile path ReadMode
+    (tempName, tempHandle) <- openTempFile "." "temp"
+    contents <- hGetContents handle
+    
+    let tasks = lines contents
+        num = read strNum - 1
+        bumping = tasks !! num
+        modified = delete num tasks
+    
+    hPutStr tempHandle $ unlines $ [bumping] ++ modified
     
     hClose tempHandle
     hClose handle
