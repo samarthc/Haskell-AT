@@ -16,3 +16,27 @@ _ <*> EmptyTree = EmptyTree
 instance F.Foldable BSTree where
 foldMap f EmptyTree = mempty
 foldMap f (Node x left right) = foldMap f left `mappend` f x `mappend` foldMap f right
+
+singleton :: a -> Tree a
+singleton x = Node x EmptyTree EmptyTree
+
+insert :: (Ord a) => a -> Tree a -> Tree a
+insert x EmptyTree = singleton x
+insert x (Node a left right)
+    | x == a = Node x left right
+    | x < a = Node a (treeInsert x left) right
+    | x > a = Node a left (treeInsert x right)
+
+elem :: (Ord a) => a -> Tree a -> Bool
+elem _ EmptyTree = False
+elem x (Node a left right)
+    | x == a = True
+    | x < a = treeElem x left
+    | x > a = treeElem x right
+
+depth :: Tree a -> Integer
+depth EmptyTree = 0
+depth (Node a left right) = 1 + max (treeDepth left) (treeDepth right)
+
+fromList :: (Ord a) => [a] -> Tree a
+fromList = foldr insert EmptyTree
