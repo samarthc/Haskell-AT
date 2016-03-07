@@ -1,10 +1,10 @@
-data Tree a = EmptyTree | Node a (Tree a) (Tree a) deriving (Eq, Show, Read)
+data BSTree a = EmptyTree | Node a (BSTree a) (BSTree a) deriving (Eq, Show, Read) --Binary Search Tree
 
-instance Functor Tree where
+instance Functor BSTree where
 fmap func EmptyTree = EmptyTree
 fmap func (Node x left right) = Node (func x) (fmap func left) (fmap func right)
 
-{-instance Applicative Tree where
+{-instance Applicative BSTree where
 pure a = Node a EmptyTree EmptyTree
 EmptyTree <*> _ = EmptyTree
 _ <*> EmptyTree = EmptyTree
