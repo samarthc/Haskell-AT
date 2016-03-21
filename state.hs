@@ -1,8 +1,10 @@
+import Control.Monad.State
+
 type Stack = [Int]
 
-pop :: Stack -> (Int, Stack)
-pop [] = error "Stack is empty"
-pop (x:xs) = (x,xs)
+pop :: State Stack Int
+pop [] = fail "Stack is empty"
+pop = State $ \xs -> (head xs, tail xs)
 
-push :: Int -> Stack -> ((), Stack)
-push x xs = ((), x:xs)
+push :: Int -> State Stack ()
+push x = State $ \xs -> ((), x:xs)
