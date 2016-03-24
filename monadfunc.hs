@@ -20,3 +20,12 @@ sequence' (m:ms) = do
     result <- m
     rest <- sequence' ms
     return (result:rest)
+
+mapM'_ :: Monad m => (a -> m b) -> [a] -> m ()
+mapM'_ monfunc = sequence'_ . map monfunc
+
+sequence'_ :: Monad m => [m a] -> m ()
+sequence'_ [] = return ()
+sequence'_ (m:ms) = do
+    m
+    sequence'_ ms
