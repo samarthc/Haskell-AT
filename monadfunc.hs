@@ -18,5 +18,5 @@ sequence' :: Monad m => [m a] -> m [a]
 sequence' [] = return []
 sequence' (m:ms) = do
     result <- m
-    rest <- sequence ms
+    rest <- sequence' ms
     return (result:rest)
