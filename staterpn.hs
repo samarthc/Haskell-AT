@@ -1,6 +1,16 @@
+{- A reverse Polish notation calculator with command line argument support. Returns a Nothing if the expression is invalid.
+   Current list of functions handled:
+     +, -, *, /
+-}
+
 import Control.Monad.State
 import Data.List (words)
 import System.Environment
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe str = case reads str of
+    [(x,"")] -> Just x
+    _ -> Nothing
 
 pop :: State (Maybe [a]) (Maybe a)
 pop = state safePop
@@ -15,6 +25,10 @@ push x = state safePush
         safePush Nothing = ((), Nothing)
         safePush (Just xs) = ((), Just(x:xs))
 
+pushMaybe :: Maybe a -> State (Maybe [a]) ()
+pushMaybe Nothing = put Nothing
+pushMaybe (Just x) = push x
+
 build :: [String] -> State (Maybe [Double]) () --Builds the stack step by step, evaluating and pushing the result as it goes.
 build [] = return ()
 build (x:xs) = do
@@ -23,7 +37,7 @@ build (x:xs) = do
         "-" -> eval (-)
         "*" -> eval (*)
         "/" -> eval (/)
-        _ -> push (read x) --Probably a number, just push it on the stack. Note: add handling of absurd expressions
+        _ -> pushMaybe (readMaybe x) --If number, readMaybe returns (Just n), which pushMaybe pushes onto the stack. Otherwise, pushMaybe puts Nothing as the state and the computation fails.
     build xs
 
 eval :: (Double -> Double -> Double) -> State (Maybe [Double]) () --Pops twice, applies the operation and pushes the result
