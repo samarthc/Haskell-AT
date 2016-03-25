@@ -29,3 +29,14 @@ sequence'_ [] = return ()
 sequence'_ (m:ms) = do
     m
     sequence'_ ms
+
+foldM' :: Monad m => (a -> b -> m a) -> a -> [b] -> m a
+foldM' _ acc [] = return acc
+foldM' f acc (x:xs) = do
+    newAcc <- f acc x
+    foldM' f newAcc xs
+
+binSmalls :: Int -> Int -> Maybe Int
+binSmalls acc x
+    | x < 9 = Just (acc + x)
+    | otherwise = Nothing

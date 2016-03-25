@@ -1,5 +1,6 @@
 import Control.Monad.State
 import Data.List (words)
+import System.Environment
 
 pop :: State (Maybe [a]) (Maybe a)
 pop = state safePop
@@ -39,4 +40,8 @@ solve str = report $ runState (build (words str)) (Just [])
     report (_, Just [x]) = Just x
     report _ = Nothing
 
-main = (fmap (show . solve) getLine) >>= putStrLn
+main = do
+    args <- getArgs
+    case args of
+        [] -> (fmap (show . solve) getLine) >>= putStrLn
+        _ -> mapM_ (putStrLn . show . solve) args
