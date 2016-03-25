@@ -14,7 +14,7 @@ push x = state safePush
         safePush Nothing = ((), Nothing)
         safePush (Just xs) = ((), Just(x:xs))
 
-build :: [String] -> State (Maybe [Double]) ()
+build :: [String] -> State (Maybe [Double]) () --Builds the stack step by step, evaluating and pushing the result as it goes.
 build [] = return ()
 build (x:xs) = do
     case x of
@@ -22,10 +22,10 @@ build (x:xs) = do
         "-" -> eval (-)
         "*" -> eval (*)
         "/" -> eval (/)
-        _ -> push (read x)
+        _ -> push (read x) --Probably a number, just push it on the stack. Note: add handling of absurd expressions
     build xs
 
-eval :: (Double -> Double -> Double) -> State (Maybe [Double]) ()
+eval :: (Double -> Double -> Double) -> State (Maybe [Double]) () --Pops twice, applies the operation and pushes the result
 eval f = do
     a <- pop
     b <- pop
