@@ -1,3 +1,5 @@
+module Tree where
+
 import qualified Data.Foldable as F
 
 data BSTree a = EmptyTree | Node a (BSTree a) (BSTree a) deriving (Eq, Show, Read) --Binary Search Tree
