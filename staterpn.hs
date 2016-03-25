@@ -1,47 +1,42 @@
 import Control.Monad.State
 import Data.List (words)
 
-readMaybe :: Read a => String -> Maybe a
-readMaybe str = case reads str of
-    [(x, "")] -> Just x
-    _ -> Nothing
-
-eval :: String -> State [String] (Maybe Double)
-eval op = do
-    a <- liftM join . (liftM . liftM $ readMaybe) $ pop --Hacky code
-    b <- liftM join . (liftM . liftM $ readMaybe) $ pop --Hacky code
-    case op of 
-        "+" -> return (liftM2 (+) b a)
-        "-" -> return (liftM2 (-) b a)
-        "*" -> return (liftM2 (*) b a)
-        "/" -> return (liftM2 (/) b a)
-        _ -> return Nothing
-
-pop :: State [a] (Maybe a)
+pop :: State (Maybe [a]) (Maybe a)
 pop = state safePop
     where
-        safePop [] = (Nothing, [])
-        safePop (x:xs) = (Just x, xs)
+        safePop (Just []) = (Nothing, Nothing)
+        safePop Nothing = (Nothing, Nothing)
+        safePop (Just (x:xs)) = (Just x, Just xs)
 
-push :: a -> State [a] ()
-push x = state $ \xs -> ((), x:xs)
+push :: a -> State (Maybe [a]) ()
+push x = state safePush
+    where
+        safePush Nothing = ((), Nothing)
+        safePush (Just xs) = ((), Just(x:xs))
 
-reduce :: State [String] ()
-reduce = do
-    cur <- get
-    if(length cur < 3) then
-        return ()
-    else do
-        Just op <- pop
-        res <- eval op
-        case res of
-            Just val -> push (show val)
-            Nothing -> fail "Expression invalid" --Because I'm hacky/Clap along, if you feel, like a coder with no remorse
-    --Seriously though, failure is handled with Nothing everywhere else. Do something similar in this situation.
-        reduce
+build :: [String] -> State (Maybe [Double]) ()
+build [] = return ()
+build (x:xs) = do
+    case x of
+        "+" -> eval (+)
+        "-" -> eval (-)
+        "*" -> eval (*)
+        "/" -> eval (/)
+        _ -> push (read x)
+    build xs
+
+eval :: (Double -> Double -> Double) -> State (Maybe [Double]) ()
+eval f = do
+    a <- pop
+    b <- pop
+    case (liftM2 f b a) of
+        Nothing -> put Nothing
+        Just res -> push res
 
 solve :: String -> Maybe Double
-solve exp = report (runState reduce (reverse . words $ exp))
+solve str = report $ runState (build (words str)) (Just [])
     where
-        report ((), [x]) = readMaybe x
-        report _ = Nothing
+    report (_, Just [x]) = Just x
+    report _ = Nothing
+
+main = (fmap (show . solve) getLine) >>= putStrLn
