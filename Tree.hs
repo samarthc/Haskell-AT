@@ -44,3 +44,6 @@ depth (Node a left right) = 1 + max (depth left) (depth right)
 
 fromList :: (Ord a) => [a] -> BSTree a
 fromList = foldr insert EmptyTree
+
+toList :: BSTree a -> [a]
+toList = foldMap (\x -> [x])
