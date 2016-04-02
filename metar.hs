@@ -1,5 +1,6 @@
 import Text.ParserCombinators.ReadP
 import Data.Char
+import Control.Monad
 
 airport :: ReadP String
 airport = do
@@ -7,10 +8,18 @@ airport = do
     satisfy (==' ')
     return code
 
-timestamp :: ReadP (Int, Int, Int)
+type Timestamp = (Int, Int, Int)
+
+timestamp :: ReadP Timestamp
 timestamp = do
-    day <- count 2 $ satisfy isDigit
-    hour <- count 2 $ satisfy isDigit
-    minute <- count 2 $ satisfy isDigit
+    day <- numbers 2
+    guard $ day `elem` [1..31]
+    hour <- numbers 2
+    guard $ hour `elem` [0..23]
+    minute <- numbers 2
+    guard $ minute `elem` [0..59]
     string "Z "
-    return (read day, read hour, read minute)
+    return (day, hour, minute)
+
+numbers :: Int -> ReadP Int
+numbers cnt = fmap read . count cnt . satisfy $ isDigit
