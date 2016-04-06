@@ -11,5 +11,5 @@ Deadline | Task
 -------- | ----
 **21 February** | ~~Complete the given assignment in Haskell~~
 **8 March** | ~~Complete Learn You a Haskell For Great Good~~
-**4 April** | Gain working knowledge of Scheme
+**4 April** | ~~Gain working knowledge of Scheme~~
 **11 April** | Complete interpreter
