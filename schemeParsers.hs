@@ -148,6 +148,7 @@ parseDottedList = do
     char '.'
     spaces
     tail <- parseExpr
+    char ')'
     return $ DottedList head tail
 
 parseQuoted :: Parser LispVal
