@@ -2,7 +2,8 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Numeric (readHex, readOct)
 import Control.Applicative (Applicative(..))
-import Data.Char
+import Data.List (lines)
+import Data.Char (toUpper, toLower)
 import Data.Complex
 import Data.Ratio
 
@@ -167,7 +168,7 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        (expr:_) -> putStrLn . readExpr $ expr
         [] -> do
-            expr <- getLine
-            putStrLn . readExpr $ expr
+            expr <- fmap lines getContents
+            mapM_ (putStrLn . readExpr) expr
+        _ -> mapM_ (putStrLn . readExpr) args
