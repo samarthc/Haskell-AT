@@ -16,7 +16,8 @@ data LispVal = Atom String
              | String String
              | Bool Bool
              | List [LispVal]
-             | DottedList [LispVal] LispVal deriving (Show, Eq)
+             | DottedList [LispVal] LispVal
+             | Vector (Array Int LispVal) deriving (Show, Eq)
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
@@ -151,14 +152,33 @@ parseDottedList = do
     char ')'
     return $ DottedList head tail
 
+parseVector :: Parser LispVal
+parseVector = do
+    string "#("
+    arrayValues <- parseExpr `sepBy` spaces
+    char ')'
+    return $ Vector (listArray (0, length arrayValues - 1) arrayValues)
+
 parseQuoted :: Parser LispVal
 parseQuoted = do
     char '\''
     x <- parseExpr
     return $ List [Atom "quote", x]
 
+parseQuasiQuoted :: Parser LispVal
+parseQuasiQuoted = do
+    char '`'
+    x <- parseExpr
+    return $ List [Atom "quasiquote", x]
+
+parseUnQuote :: Parser LispVal
+parseUnQuote = do
+    char ','
+    x <- parseExpr
+    return $ List [Atom "unquote", x]
+
 parseExpr :: Parser LispVal
-parseExpr = try parseList <|> parseDottedList <|> parseAtom <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted
+parseExpr = try parseList <|> parseDottedList <|> parseAtom <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote
 
 readExpr :: String -> String
 readExpr input = case parse (spaces >> parseExpr) "lisp" input of
