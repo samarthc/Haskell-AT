@@ -2,7 +2,7 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Numeric (readHex, readOct)
 import Control.Applicative (Applicative(..))
-import Data.List (lines,intercalate)
+import Data.List (lines, unwords)
 import Data.Char (toUpper, toLower)
 import Data.Complex
 import Data.Ratio
@@ -30,9 +30,9 @@ instance Show LispVal where
     show (Character ch) = "#\\" ++ [ch]
     show (String str) = "\"" ++ str ++ "\""
     show (Bool bool) = if bool then "#t" else "#f"
-    show (List list) = "(" ++  (intercalate " " . map show) list ++ ")"
-    show (DottedList list val) = "(" ++ (intercalate " " . map show) list ++ " . " ++ show val ++ ")"
-    show (Vector array) = let list = foldMap (:[]) array in "#(" ++ (intercalate " " . map show) list ++ ")"
+    show (List list) = "(" ++  (unwords . show) list ++ ")"
+    show (DottedList list val) = "(" ++ (unwords . show) list ++ " . " ++ show val ++ ")"
+    show (Vector array) = let list = foldMap (:[]) array in "#(" ++ (unwords . show) list ++ ")"
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
