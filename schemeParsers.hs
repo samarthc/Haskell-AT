@@ -164,11 +164,19 @@ readExpr input = case parse (spaces >> parseExpr) "lisp" input of
     Left err -> "No match: " ++ show err
     Right val -> "Found value: " ++ show val
 
+interactive :: IO ()
+interactive = helper []
+    where
+    helper :: [String] -> IO ()
+    helper acc = do
+        line <- getLine
+        if null line
+        then mapM_ (putStrLn . readExpr) (reverse acc)
+        else helper (line:acc)
+
 main :: IO ()
 main = do
     args <- getArgs
     case args of
-        [] -> do
-            expr <- fmap lines getContents
-            mapM_ (putStrLn . readExpr) expr
+        [] -> interactive
         _ -> mapM_ (putStrLn . readExpr) args
