@@ -7,18 +7,39 @@ import Data.Complex
 import Data.Ratio
 
 data LispVal = Atom String
-             | List [LispVal]
-             | DottedList [LispVal] LispVal
              | Number Integer
              | Float Double
              | Ratio Rational
              | Complex (Complex Double)
              | Character Char
              | String String
-             | Bool Bool deriving (Show, Eq)
+             | Bool Bool
+             | List [LispVal]
+             | DottedList [LispVal] LispVal deriving (Show, Eq)
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
+
+spaces :: Parser ()
+spaces = skipMany space
+
+-- | Parser that matches a string without matching case
+stringi :: String -> Parser String
+stringi "" = return ""
+stringi (x:xs) = do
+    first <- fmap toLower . oneOf $ [toUpper, toLower] <*> [x]
+    rest <- stringi xs
+    return $ first:rest
+
+escapedChars :: Parser Char
+escapedChars = do
+    char '\\'
+    x <- oneOf "\\\"\n\r\t"
+    return $ case x of
+        'n' -> '\n'
+        't' -> '\t'
+        'r' -> '\r'
+        _ -> x
 
 parseAtom :: Parser LispVal
 parseAtom = do
@@ -78,7 +99,9 @@ parseRatio = do
 parseComplex :: Parser LispVal
 parseComplex = do
     x <- (try parseFloat <|> parseNumber)
-    try (string "+") <|> try (string " + ")
+    spaces
+    char '+'
+    spaces
     y <- (try parseFloat <|> parseNumber)
     char 'i'
     return $ Complex (toDouble x :+ toDouble y)
@@ -88,30 +111,12 @@ parseComplex = do
 
 parseCharacter :: Parser LispVal
 parseCharacter = do
-    try $ string "#\\"
-    value <- try (stringi "newline" <|> stringi "space") <|> do { x <-    anyChar; notFollowedBy alphaNum; return [x]}
+    string "#\\"
+    value <- do {x <- try (stringi "newline" <|> stringi "space") <|> fmap (:[]) anyChar; notFollowedBy alphaNum; return x}
     return $ Character $ case value of
         "space" -> ' '
         "newline" -> '\n'
         _ -> head value
-
--- | Parser that matches a string without matching case
-stringi :: String -> Parser String
-stringi "" = return ""
-stringi (x:xs) = do
-    first <- oneOf $ [toUpper, toLower] <*> [x]
-    rest <- stringi xs
-    return $ first:rest
-
-escapedChars :: Parser Char
-escapedChars = do
-    char '\\'
-    x <- oneOf "\\\"\n\r\t"
-    return $ case x of
-        'n' -> '\n'
-        't' -> '\t'
-        'r' -> '\r'
-        _ -> x
     
 parseString :: Parser LispVal
 parseString = do
@@ -125,11 +130,33 @@ parseBool = do
     char '#'
     (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool True))
 
-parseExpr :: Parser LispVal
-parseExpr = parseAtom <|> parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool
+parseList :: Parser LispVal
+parseList = do
+    char '('
+    spaces
+    list <- parseExpr `sepBy` spaces
+    char ')'
+    spaces
+    return $ List list
 
-spaces :: Parser ()
-spaces = skipMany space
+parseDottedList :: Parser LispVal
+parseDottedList = do
+    char '('
+    spaces
+    head <- parseExpr `endBy` spaces
+    char '.'
+    spaces
+    tail <- parseExpr
+    return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+    char '\''
+    x <- parseExpr
+    return $ List [Atom "quote", x]
+
+parseExpr :: Parser LispVal
+parseExpr = try parseList <|> parseDottedList <|> parseAtom <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted
 
 readExpr :: String -> String
 readExpr input = case parse (spaces >> parseExpr) "lisp" input of
