@@ -4,6 +4,7 @@ import Data.Complex
 import Data.Ratio
 import Data.Array
 import Data.Foldable (Foldable(..))
+
 data LispVal = Atom String
              | Number Integer
              | Float Double

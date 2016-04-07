@@ -1,38 +1,12 @@
+module SchemeParsers where
+
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Numeric (readHex, readOct)
 import Control.Applicative (Applicative(..))
 import Data.List (lines, unwords)
 import Data.Char (toUpper, toLower)
-import Data.Complex
-import Data.Ratio
-import Data.Foldable (Foldable(..))
-import Data.Array
-
-data LispVal = Atom String
-             | Number Integer
-             | Float Double
-             | Ratio Rational
-             | Complex (Complex Double)
-             | Character Char
-             | String String
-             | Bool Bool
-             | List [LispVal]
-             | DottedList [LispVal] LispVal
-             | Vector (Array Int LispVal) deriving (Eq)
-
-instance Show LispVal where
-    show (Atom name) = name
-    show (Number num) = show num
-    show (Float num) = show num
-    show (Ratio num) = show num
-    show (Complex num) = show num
-    show (Character ch) = "#\\" ++ [ch]
-    show (String str) = "\"" ++ str ++ "\""
-    show (Bool bool) = if bool then "#t" else "#f"
-    show (List list) = "(" ++  (unwords . show) list ++ ")"
-    show (DottedList list val) = "(" ++ (unwords . show) list ++ " . " ++ show val ++ ")"
-    show (Vector array) = let list = foldMap (:[]) array in "#(" ++ (unwords . show) list ++ ")"
+import LispVal
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
@@ -195,10 +169,10 @@ parseUnQuote = do
 parseExpr :: Parser LispVal
 parseExpr = try parseList <|> parseDottedList <|> parseAtom <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote
 
-readExpr :: String -> String
+readExpr :: String -> LispVal
 readExpr input = case parse (spaces >> parseExpr) "lisp" input of
-    Left err -> "No match: " ++ show err
-    Right val -> "Found value: " ++ show val
+    Left err -> String $ "No match: " ++ show err
+    Right val -> val
 
 interactive :: IO ()
 interactive = helper []
@@ -207,7 +181,7 @@ interactive = helper []
     helper acc = do
         line <- getLine
         if null line
-        then mapM_ (putStrLn . readExpr) (reverse acc)
+        then mapM_ (print . eval . readExpr) (reverse acc)
         else helper (line:acc)
 
 main :: IO ()
@@ -215,4 +189,4 @@ main = do
     args <- getArgs
     case args of
         [] -> interactive
-        _ -> mapM_ (putStrLn . readExpr) args
+        _ -> mapM_ (print . eval . readExpr) args
