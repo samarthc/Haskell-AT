@@ -14,8 +14,8 @@ data LispError = NumArgs Integer [LispVal]
                | Default String
 
 instance Show LispError where
-    show (NumArgs expected found) = "Expected " ++ show expected ++ " args; found values " ++ (unwords . map show) found
-    show (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ " args; found values " ++ show found
+    show (NumArgs expected found) = "Expected " ++ show expected ++ " args; found value(s): " ++ (unwords . map show) found
+    show (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ "; found " ++ show found
     show (Parser parseError) = "Parse error at " ++ show parseError
     show (BadSpecialForm message form) = message ++ ": " ++ show form
     show (NotFunction message func) = message ++ ": " ++ func
