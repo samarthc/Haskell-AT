@@ -10,7 +10,7 @@ primitives :: [(String, [LispVal] -> Either LispError LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
               ("*", numericBinOp (*)),
-              ("/", numericBinOp (/)),
+              ("/", numericBinOp div),
               ("mod", numericBinOp mod),
               ("quotient", numericBinOp quot),
               ("remainder", numericBinOp rem),
