@@ -15,7 +15,8 @@ data LispVal = Atom String
              | Bool Bool
              | List [LispVal]
              | DottedList [LispVal] LispVal
-             | Vector (Array Int LispVal) deriving (Eq)
+             | Vector (Array Int LispVal)
+             | Unspecified deriving (Eq)
 
 instance Show LispVal where
     show (Atom name) = name
@@ -29,3 +30,4 @@ instance Show LispVal where
     show (List list) = "(" ++  (unwords . map show) list ++ ")"
     show (DottedList list val) = "(" ++ (unwords . map show) list ++ " . " ++ show val ++ ")"
     show (Vector array) = let list = foldMap (:[]) array in "#(" ++ (unwords . map show) list ++ ")"
+    show Unspecified = "unspecified value"

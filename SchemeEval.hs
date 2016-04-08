@@ -6,6 +6,32 @@ import Control.Monad.Error
 import GHC.Real
 import Data.Complex
 
+eval :: LispVal -> Either LispError LispVal
+eval val@(Number _) = return val
+eval val@(Float _) = return val
+eval val@(Ratio _) = return val
+eval val@(Complex _) = return val
+eval val@(Character _) = return val
+eval val@(String _) = return val
+eval val@(Bool _) = return val
+eval (List [Atom "quote", val]) = return val
+eval (List [Atom "if", pred, conseq]) = do
+    result <- eval pred
+    case result of
+        Bool False -> return Unspecified
+        otherwise -> eval conseq
+eval (List [Atom "if", pred, conseq, alt]) = do
+    result <- eval pred
+    case result of
+        Bool False -> eval alt
+        otherwise -> eval conseq
+eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval (List []) = return $ List []
+eval badform = throwError $ BadSpecialForm "Unrecognized form" badform
+
+apply :: String -> [LispVal] -> Either LispError LispVal
+apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function" func) ($ args) $ lookup func primitives
+
 primitives :: [(String, [LispVal] -> Either LispError LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
@@ -135,19 +161,3 @@ sym2str (Atom s) = return $ String s
 sym2str arg = throwError $ TypeMismatch "symbol" arg
 str2sym (String s) = return $ Atom s
 str2sym arg = throwError $ TypeMismatch "string" arg
-
-eval :: LispVal -> Either LispError LispVal
-eval val@(Number _) = return val
-eval val@(Float _) = return val
-eval val@(Ratio _) = return val
-eval val@(Complex _) = return val
-eval val@(Character _) = return val
-eval val@(String _) = return val
-eval val@(Bool _) = return val
-eval (List [Atom "quote", val]) = return val
-eval (List (Atom func : args)) = mapM eval args >>= apply func
-eval (List []) = return $ List []
-eval badform = throwError $ BadSpecialForm "Unrecognized form" badform
-
-apply :: String -> [LispVal] -> Either LispError LispVal
-apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function" func) ($ args) $ lookup func primitives
