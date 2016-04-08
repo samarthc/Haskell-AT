@@ -1,5 +1,9 @@
 module SchemeEval where
 
+import LispVal
+import GHC.Real
+import Data.Complex
+
 primitives :: [(String, [LispVal] -> LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
@@ -9,12 +13,14 @@ primitives = [("+", numericBinOp (+)),
               ("quotient", numericBinOp quot),
               ("remainder", numericBinOp rem)]
 
-numericBinOp :: Num a => (a -> a -> a) -> [LispVal] -> LispVal
-numericBinOp op params = let x = foldl1 op $ map unpackNum params in case x of
-    (_ % _) -> Ratio x
-    (_ :+ _) -> Complex x
-    otherwise -> if isInt x then Number x else Float x
-    where isInt x = x == (round x)
+numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
+numericBinOp op params = Number $ foldl1 op $ map unpackNum params
+
+unpackNum :: Num a => LispVal -> a
+unpackNum (Number num) = fromIntegral num
+--unpackNum (Float num) = num
+--unpackNum (Ratio num) = fromRational num
+--unpackNum (Complex num) = num
 
 eval :: LispVal -> LispVal
 eval val@(Number _) = val

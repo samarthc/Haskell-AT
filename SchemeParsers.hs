@@ -6,7 +6,11 @@ import Numeric (readHex, readOct)
 import Control.Applicative (Applicative(..))
 import Data.List (lines, unwords)
 import Data.Char (toUpper, toLower)
+import Data.Ratio
+import Data.Complex
+import Data.Array
 import LispVal
+import SchemeEval
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
