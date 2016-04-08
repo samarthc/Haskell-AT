@@ -1,10 +1,12 @@
 module SchemeEval where
 
 import LispVal
+import LispError
+import Control.Monad.Error
 import GHC.Real
 import Data.Complex
 
-primitives :: [(String, [LispVal] -> LispVal)]
+primitives :: [(String, [LispVal] -> Either LispError LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
               ("*", numericBinOp (*)),
@@ -26,18 +28,22 @@ primitives = [("+", numericBinOp (+)),
               ("symbol->string", conversion sym2str),
               ("string->symbol", conversion str2sym)]
 
-numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
-numericBinOp op params = Number $ foldl1 op $ map unpackNum params
+numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
+numericBinOp _ [] = throwError $ NumArgs 2 []
+numericBinOp _ val@[_] = throwError $ NumArgs 2 val
+numericBinOp op params = mapM unpackNum params >>= return . Number . foldl1 op
 
-predicate :: (LispVal -> Bool) -> [LispVal] -> LispVal
-predicate pred [val] = Bool $ pred val
+predicate :: (LispVal -> Bool) -> [LispVal] -> Either LispError LispVal
+predicate pred [val] = return . Bool $ pred val
+predicate pred args = throwError $ NumArgs 1 args
 
-conversion :: (LispVal -> LispVal) -> [LispVal] -> LispVal
-conversion conv [va] = conv val
+conversion :: (LispVal -> Either LispError LispVal) -> [LispVal] -> Either LispError LispVal
+conversion conv [val] = conv val
+conversion _ args = throwError $ NumArgs 1 args
 
-unpackNum :: Num a => LispVal -> a
-unpackNum (Number num) = fromIntegral num
-unpackNum _ = 0
+unpackNum :: Num a => LispVal -> Either LispError a
+unpackNum (Number num) = return $ fromIntegral num
+unpackNum notNum = throwError $ TypeMismatch "number" notNum
 --unpackNum (Float num) = num
 --unpackNum (Ratio num) = fromRational num
 --unpackNum (Complex num) = num
@@ -92,21 +98,24 @@ frac x
     | (x-1) < 0 = x
     | otherwise = frac (x-1)
 
-sym2str, str2sym :: LispVal -> LispVal
-sym2str (Atom s) = String s
-str2sym (String s) = Atom s
+sym2str, str2sym :: LispVal -> Either LispError LispVal
+sym2str (Atom s) = return $ String s
+sym2str arg = throwError $ TypeMismatch "symbol" arg
+str2sym (String s) = return $ Atom s
+str2sym arg = throwError $ TypeMismatch "string" arg
 
-eval :: LispVal -> LispVal
-eval val@(Number _) = val
-eval val@(Float _) = val
-eval val@(Ratio _) = val
-eval val@(Complex _) = val
-eval val@(Character _) = val
-eval val@(String _) = val
-eval val@(Bool _) = val
-eval (List [Atom "quote", val]) = val
-eval (List (Atom func : args)) = apply func $ map eval args
-eval (List []) = List []
+eval :: LispVal -> Either LispError LispVal
+eval val@(Number _) = return val
+eval val@(Float _) = return val
+eval val@(Ratio _) = return val
+eval val@(Complex _) = return val
+eval val@(Character _) = return val
+eval val@(String _) = return val
+eval val@(Bool _) = return val
+eval (List [Atom "quote", val]) = return val
+eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval (List []) = return $ List []
+eval badform = throwError $ BadSpecialForm "Unrecognized form" badform
 
-apply :: String -> [LispVal] -> LispVal
-apply func args = maybe (Bool False) ($ args) $ lookup func primitives
+apply :: String -> [LispVal] -> Either LispError LispVal
+apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function" func) ($ args) $ lookup func primitives

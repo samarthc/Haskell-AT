@@ -1,15 +1,18 @@
 module SchemeParsers where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
-import System.Environment
+import System.Environment (getArgs)
 import Numeric (readHex, readOct)
 import Control.Applicative (Applicative(..))
+import Control.Monad
+import Control.Monad.Error
 import Data.List (lines, unwords)
 import Data.Char (toUpper, toLower)
 import Data.Ratio
 import Data.Complex
 import Data.Array
 import LispVal
+import LispError
 import SchemeEval
 
 symbol :: Parser Char
@@ -173,24 +176,29 @@ parseUnQuote = do
 parseExpr :: Parser LispVal
 parseExpr = try parseList <|> parseDottedList <|> parseAtom <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote
 
-readExpr :: String -> LispVal
+readExpr :: String -> Either LispError LispVal
 readExpr input = case parse (spaces >> parseExpr) "lisp" input of
-    Left err -> String $ "No match: " ++ show err
-    Right val -> val
+    Left err -> throwError $ Parser err
+    Right val -> return val
 
-interactive :: IO ()
-interactive = helper []
-    where
-    helper :: [String] -> IO ()
-    helper acc = do
-        line <- getLine
-        if null line
-        then mapM_ (print . eval . readExpr) (reverse acc)
-        else helper (line:acc)
+withoutArgs :: IO ()
+withoutArgs = do
+    fmap (:[]) getLine >>= \x -> case x of
+                                [""] -> return ()
+                                otherwise -> do
+                                                withArgs x
+                                                withoutArgs    
+
+withArgs :: [String] -> IO ()
+withArgs [] = return ()
+withArgs [""] = return ()
+withArgs (arg:rest) = do
+    putStrLn . extractValue . trapError $ (readExpr arg >>= eval >>= (return . show))
+    withArgs rest
 
 main :: IO ()
 main = do
     args <- getArgs
     case args of
-        [] -> interactive
-        _ -> mapM_ (print . eval . readExpr) args
+        [] -> withoutArgs
+        _ -> withArgs args
