@@ -26,7 +26,20 @@ primitives = [("+", numericBinOp (+)),
               ("rational?", predicate rationalp),
               ("integer?", predicate integerp),
               ("symbol->string", conversion sym2str),
-              ("string->symbol", conversion str2sym)]
+              ("string->symbol", conversion str2sym),
+              ("=", numCompare (==)),
+              ("<", numCompare (<)),
+              (">", numCompare (>)),
+              ("/=", numCompare (/=)),
+              (">=", numCompare (>=)),
+              ("<=", numCompare (<=)),
+              ("&&", boolCombine (&&)),
+              ("||", boolCombine (||)),
+              ("string=?", strCompare (==)),
+              ("string<?", strCompare (<)),
+              ("string>?", strCompare (>)),
+              ("string<=?", strCompare (<=)),
+              ("string>=?", strCompare (>=))]
 
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
 numericBinOp _ [] = throwError $ NumArgs 2 []
@@ -41,12 +54,31 @@ conversion :: (LispVal -> Either LispError LispVal) -> [LispVal] -> Either LispE
 conversion conv [val] = conv val
 conversion _ args = throwError $ NumArgs 1 args
 
+numCompare = boolBinOp unpackNum
+boolCombine = boolBinOp unpackBool
+strCompare = boolBinOp unpackStr
+
+boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
+boolBinOp unpacker op args = if length args /= 2
+                             then throwError $ NumArgs 2 args
+                             else do left <- (unpacker . head $ args)
+                                     right <- (unpacker . head . tail $ args)
+                                     return . Bool $ left `op` right
+
 unpackNum :: Num a => LispVal -> Either LispError a
 unpackNum (Number num) = return $ fromIntegral num
 unpackNum notNum = throwError $ TypeMismatch "number" notNum
 --unpackNum (Float num) = num
 --unpackNum (Ratio num) = fromRational num
 --unpackNum (Complex num) = num
+
+unpackBool :: LispVal -> Either LispError Bool
+unpackBool (Bool bool) = return bool
+unpackBool notBool = throwError $ TypeMismatch "bool" notBool
+
+unpackStr :: LispVal -> Either LispError String
+unpackStr (String str) = return str
+unpackStr notStr = throwError $ TypeMismatch "string" notStr
 
 symbolp, stringp, boolp, listp, pairp, vectorp, numberp, complexp, realp, rationalp, integerp :: LispVal -> Bool
 
