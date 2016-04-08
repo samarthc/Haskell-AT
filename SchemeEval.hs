@@ -10,7 +10,7 @@ primitives :: [(String, [LispVal] -> Either LispError LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
               ("*", numericBinOp (*)),
-              ("/", numericBinOp (*)),
+              ("/", numericBinOp (/)),
               ("mod", numericBinOp mod),
               ("quotient", numericBinOp quot),
               ("remainder", numericBinOp rem),
@@ -78,7 +78,7 @@ numberp _ = False
 
 complexp = numberp
 
-realp (Complex (_ :+ 0)) = True
+realp (Complex num) = imagPart num == 0
 realp arg = numberp arg
 
 rationalp = realp

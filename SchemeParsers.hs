@@ -126,7 +126,7 @@ parseString = do
 parseBool :: Parser LispVal
 parseBool = do
     char '#'
-    (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool True))
+    (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
 parseList :: Parser LispVal
 parseList = do
