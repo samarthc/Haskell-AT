@@ -5,6 +5,8 @@ import LispError
 import Control.Monad.Error
 import GHC.Real
 import Data.Complex
+import Data.Char (toLower)
+import Data.List (genericLength, genericDrop, genericTake, genericReplicate, genericIndex)
 
 eval :: LispVal -> Either LispError LispVal
 eval val@(Number _) = return val
@@ -113,6 +115,19 @@ primitives = [("+", numericBinOp (+)),
               ("string>?", strCompare (>)),
               ("string<=?", strCompare (<=)),
               ("string>=?", strCompare (>=)),
+              ("string-ci=?", strComparei (==)),
+              ("string-ci<?", strComparei (<)),
+              ("string-ci>?", strComparei (>)),
+              ("string-ci<=?", strComparei (<=)),
+              ("string-ci>=?", strComparei (>=)),
+              ("make-string", makeString),
+              ("string", newString),
+              ("string-length", strLen),
+              ("string-ref", strRef),
+              ("substring", subStr),
+              ("string-append", strApp),
+              ("string->list", conversion str2list),
+              ("list->string", conversion list2str),
               ("car", car),
               ("cdr", cdr),
               ("cons", cons),
@@ -136,7 +151,7 @@ conversion _ args = throwError $ NumArgs 1 args
 numCompare = boolBinOp unpackNum
 boolCombine = boolBinOp unpackBool
 strCompare = boolBinOp unpackStr
-
+strComparei = boolBinOp unpackStri
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
 boolBinOp unpacker op args = if length args /= 2
                              then throwError $ NumArgs 2 args
@@ -158,6 +173,10 @@ unpackBool notBool = throwError $ TypeMismatch "bool" notBool
 unpackStr :: LispVal -> Either LispError String
 unpackStr (String str) = return str
 unpackStr notStr = throwError $ TypeMismatch "string" notStr
+
+unpackStri :: LispVal -> Either LispError String
+unpackStri (String str) = return . map toLower $ str
+unpackStri notStr = throwError $ TypeMismatch "string" notStr
 
 symbolp, stringp, boolp, listp, pairp, vectorp, numberp, complexp, realp, rationalp, integerp :: LispVal -> Bool
 
@@ -209,12 +228,63 @@ frac x
     | (x-1) < 0 = x
     | otherwise = frac (x-1)
 
-sym2str, str2sym :: LispVal -> Either LispError LispVal
+sym2str, str2sym, str2list, list2str :: LispVal -> Either LispError LispVal
 sym2str (Atom s) = return $ String s
-sym2str arg = throwError $ TypeMismatch "symbol" arg
-str2sym (String s) = return $ Atom s
-str2sym arg = throwError $ TypeMismatch "string" arg
+sym2str badArg = throwError $ TypeMismatch "symbol" badArg
 
+str2sym (String s) = return $ Atom s
+str2sym badArg = throwError $ TypeMismatch "string" badArg
+
+str2list (String str) = return . List . map Character $ str
+str2list badArg = throwError $ TypeMismatch "string" badArg
+
+list2str (List []) = return $ String ""
+list2str (List ((Character ch):xs)) = list2str (List xs) >>= unpackStr >>= return . String . (ch:)
+list2str (List (badArg:_)) = throwError $ TypeMismatch "character" badArg
+list2str badArg = throwError $ TypeMismatch "list" badArg
+
+makeString :: [LispVal] -> Either LispError LispVal
+makeString [] = throwError $ NumArgs 2 []
+makeString [(Number len)] = return . String $ genericReplicate len '\NUL'
+makeString [badArg] = throwError $ TypeMismatch "integer" badArg
+makeString [(Number len), (Character ch)] = return . String $ genericReplicate len ch
+makeString [(Number len), badArg] = throwError $ TypeMismatch "character" badArg
+makeString [badArg, _] = throwError $ TypeMismatch "integer" badArg
+makeString badArgList = throwError $ NumArgs 2 badArgList
+
+newString :: [LispVal] -> Either LispError LispVal
+newString [] = return . String $ ""
+newString ((Character ch):xs) = newString xs >>= unpackStr >>= return . String . (ch:)
+newString (badArg:_) = throwError $ TypeMismatch "character" badArg
+
+strLen :: [LispVal] -> Either LispError LispVal
+strLen [(String str)] = return . Number . genericLength $ str
+strLen [badArg] = throwError $ TypeMismatch "string" badArg
+strLen badArgList = throwError $ NumArgs 1 badArgList
+
+strRef :: [LispVal] -> Either LispError LispVal
+strRef [(String str), (Number i)]
+    | i>=0 && i < genericLength str = return . Character $ str `genericIndex` i
+    | otherwise = throwError $ Default "index out of range"
+strRef [badArg, (Number _)] = throwError $ TypeMismatch "string" badArg
+strRef [(String str), badArg] = throwError $ TypeMismatch "integer" badArg
+strRef badArgList = throwError $ NumArgs 2 badArgList
+
+subStr :: [LispVal] -> Either LispError LispVal
+subStr [(String str), (Number start), (Number end)]
+    | start < 0 || start > genericLength str = throwError $ Default "first index out of range"
+    | end < 0 || end > genericLength str = throwError $ Default "second index out of range"
+    | start > end = throwError $ Default "first index cannot be greater than second index"
+    | otherwise = return . String . genericTake (end - start) . genericDrop start $ str
+subStr [badArg, (Number _), (Number _)] = throwError $ TypeMismatch "string" badArg
+subStr [_, badArg, (Number _)] = throwError $ TypeMismatch "integer" badArg
+subStr [_, _, badArg] = throwError $ TypeMismatch "integer" badArg
+subStr badArgList = throwError $ NumArgs 3 badArgList
+
+strApp :: [LispVal] -> Either LispError LispVal
+strApp [] = return . String $ ""
+strApp ((String str):xs) = strApp xs >>= unpackStr >>= return . String . (str++)
+strApp (badArg:_) = throwError $ TypeMismatch "string" badArg
 
 car :: [LispVal] -> Either LispError LispVal
 car [List (x:xs)] = return x
