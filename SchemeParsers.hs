@@ -180,25 +180,3 @@ readExpr :: String -> Either LispError LispVal
 readExpr input = case parse (spaces >> parseExpr) "lisp" input of
     Left err -> throwError $ Parser err
     Right val -> return val
-
-withoutArgs :: IO ()
-withoutArgs = do
-    fmap (:[]) getLine >>= \x -> case x of
-                                [""] -> return ()
-                                otherwise -> do
-                                                withArgs x
-                                                withoutArgs    
-
-withArgs :: [String] -> IO ()
-withArgs [] = return ()
-withArgs [""] = return ()
-withArgs (arg:rest) = do
-    putStrLn . extractValue . trapError $ (readExpr arg >>= eval >>= (return . show))
-    withArgs rest
-
-main :: IO ()
-main = do
-    args <- getArgs
-    case args of
-        [] -> withoutArgs
-        _ -> withArgs args
