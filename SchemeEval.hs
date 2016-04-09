@@ -65,7 +65,10 @@ primitives = [("+", numericBinOp (+)),
               ("string<?", strCompare (<)),
               ("string>?", strCompare (>)),
               ("string<=?", strCompare (<=)),
-              ("string>=?", strCompare (>=))]
+              ("string>=?", strCompare (>=)),
+              ("car", car),
+              ("cdr", cdr),
+              ("cons", cons)]
 
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
 numericBinOp _ [] = throwError $ NumArgs 2 []
@@ -83,6 +86,25 @@ conversion _ args = throwError $ NumArgs 1 args
 numCompare = boolBinOp unpackNum
 boolCombine = boolBinOp unpackBool
 strCompare = boolBinOp unpackStr
+
+car :: [LispVal] -> Either LispError LispVal
+car [List (x:xs)] = return x
+car [DottedList (x:xs) _] = return x
+car [badArg] = throwError $ TypeMismatch "pair" badArg
+car badArgList = throwError $ NumArgs 1 badArgList
+
+cdr :: [LispVal] -> Either LispError LispVal
+cdr [List (_ : xs)] = return $ List xs
+cdr [DottedList [_] x] = return x
+cdr [DottedList (_:xs) x] = return $ DottedList xs x
+cdr [badArg] = throwError $ TypeMismatch "pair" badArg
+cdr badArgList = throwError $ NumArgs 1 badArgList
+
+cons :: [LispVal] -> Either LispError LispVal
+cons [x, List xs] = return $ List (x:xs)
+cons [x, DottedList xs last] = return $ DottedList (x:xs) last
+cons [x, y] = return $ DottedList [x] y
+cons badArgsList = throwError $ NumArgs 2 badArgsList
 
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
 boolBinOp unpacker op args = if length args /= 2
