@@ -68,7 +68,10 @@ primitives = [("+", numericBinOp (+)),
               ("string>=?", strCompare (>=)),
               ("car", car),
               ("cdr", cdr),
-              ("cons", cons)]
+              ("cons", cons),
+              ("eq?", eqv),
+              ("eqv?", eqv),
+              ("equal?", equal)]
 
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
 numericBinOp _ [] = throwError $ NumArgs 2 []
@@ -86,25 +89,6 @@ conversion _ args = throwError $ NumArgs 1 args
 numCompare = boolBinOp unpackNum
 boolCombine = boolBinOp unpackBool
 strCompare = boolBinOp unpackStr
-
-car :: [LispVal] -> Either LispError LispVal
-car [List (x:xs)] = return x
-car [DottedList (x:xs) _] = return x
-car [badArg] = throwError $ TypeMismatch "pair" badArg
-car badArgList = throwError $ NumArgs 1 badArgList
-
-cdr :: [LispVal] -> Either LispError LispVal
-cdr [List (_ : xs)] = return $ List xs
-cdr [DottedList [_] x] = return x
-cdr [DottedList (_:xs) x] = return $ DottedList xs x
-cdr [badArg] = throwError $ TypeMismatch "pair" badArg
-cdr badArgList = throwError $ NumArgs 1 badArgList
-
-cons :: [LispVal] -> Either LispError LispVal
-cons [x, List xs] = return $ List (x:xs)
-cons [x, DottedList xs last] = return $ DottedList (x:xs) last
-cons [x, y] = return $ DottedList [x] y
-cons badArgsList = throwError $ NumArgs 2 badArgsList
 
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
 boolBinOp unpacker op args = if length args /= 2
@@ -183,3 +167,47 @@ sym2str (Atom s) = return $ String s
 sym2str arg = throwError $ TypeMismatch "symbol" arg
 str2sym (String s) = return $ Atom s
 str2sym arg = throwError $ TypeMismatch "string" arg
+
+
+car :: [LispVal] -> Either LispError LispVal
+car [List (x:xs)] = return x
+car [DottedList (x:xs) _] = return x
+car [badArg] = throwError $ TypeMismatch "pair" badArg
+car badArgList = throwError $ NumArgs 1 badArgList
+
+cdr :: [LispVal] -> Either LispError LispVal
+cdr [List (_ : xs)] = return $ List xs
+cdr [DottedList [_] x] = return x
+cdr [DottedList (_:xs) x] = return $ DottedList xs x
+cdr [badArg] = throwError $ TypeMismatch "pair" badArg
+cdr badArgList = throwError $ NumArgs 1 badArgList
+
+cons :: [LispVal] -> Either LispError LispVal
+cons [x, List xs] = return $ List (x:xs)
+cons [x, DottedList xs last] = return $ DottedList (x:xs) last
+cons [x, y] = return $ DottedList [x] y
+cons badArgList = throwError $ NumArgs 2 badArgList
+
+eqv :: [LispVal] -> Either LispError LispVal
+eqv [(Bool arg1), (Bool arg2)] = return . Bool $ arg1 == arg2
+eqv [(Number arg1), (Number arg2)] = return . Bool $ arg1 == arg2
+eqv [(String arg1), (String arg2)] = return . Bool $ arg1 == arg2
+eqv [(Atom arg1), (Atom arg2)] = return . Bool $ arg1 == arg2
+eqv [(List []), (List [])] = return . Bool $ True
+eqv [_, _] = return . Bool $ False
+eqv badArgList = throwError $ NumArgs 2 badArgList
+
+equal :: [LispVal] -> Either LispError LispVal
+equal val@[(Bool _), (Bool _)] = eqv val
+equal val@[(Number _), (Number _)] = eqv val
+equal val@[(String _), (String _)] = eqv val
+equal val@[(Atom _), (Atom _)] = eqv val
+equal [(DottedList xs x), (DottedList ys y)] = equal [List (xs ++ [x]), List (ys ++ [y])]
+equal [(List []), (List [])] = return . Bool $ True
+equal [(List (x:xs)), (List [])] = return . Bool $ False
+equal [(List []), (List (y:ys))] = return . Bool $ False
+equal [(List (x:xs)), (List (y:ys))] = if x==y
+    then equal [List xs, List ys]
+    else return . Bool $ False
+equal [_, _] = return . Bool $ False
+equal badArgList = throwError $ NumArgs 2 badArgList
