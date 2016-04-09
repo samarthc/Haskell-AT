@@ -20,6 +20,7 @@ instance Show LispError where
     show (BadSpecialForm message form) = message ++ ": " ++ show form
     show (NotFunction message func) = message ++ ": " ++ func
     show (UnboundVar message varname) = message ++ ": " ++ varname
+    show (Default message) = message
 
 instance Error LispError where
     noMsg = Default "An error has occured"
