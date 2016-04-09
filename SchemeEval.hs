@@ -25,6 +25,53 @@ eval (List [Atom "if", pred, conseq, alt]) = do
     case result of
         Bool False -> eval alt
         otherwise -> eval conseq
+
+eval form@(List (Atom "case" : key : clauses)) = 
+    if null clauses
+    then return Unspecified
+    else case head clauses of
+        List (Atom "else" : exprs) -> mapM eval exprs >>= return . last
+        List ((List datums) : exprs) -> do
+            result <- eval key
+            equality <- mapM (\x -> eqv [result, x]) datums
+            if Bool True `elem` equality
+                then mapM eval exprs >>= return . last
+                else eval $ List (Atom "case" : key : tail clauses)
+        otherwise -> throwError $ BadSpecialForm "ill-formed case expression" form
+
+eval form@(List (Atom "cond" : clauses)) = 
+    if null clauses
+    then return Unspecified
+    else case head clauses of
+        List (Atom "else" : exprs) -> if (null . tail $ clauses)
+                                      then mapM eval exprs >>= return . last
+                                      else throwError $ BadSpecialForm "misplaced else clause" (List (Atom "else" : exprs))
+        List (test : exprs) -> do
+            result <- eval test
+            case result of
+                Bool False -> eval (List (Atom "cond" : tail clauses))
+                otherwise -> mapM eval exprs >>= return . last
+
+eval (List (Atom "and" : exprs)) = 
+    if null exprs
+    then return $ Bool True
+    else do
+        result <- eval $ head exprs
+        case result of
+            Bool False -> return result
+            otherwise -> if (null . tail $ exprs)
+                         then return result
+                         else eval (List (Atom "and" : tail exprs))
+
+eval (List (Atom "or" : exprs)) =
+    if null exprs
+    then return $ Bool False
+    else do
+        result <- eval $ head exprs
+        case result of
+            Bool False -> eval (List (Atom "or" : tail exprs))
+            otherwise -> return result
+
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval (List []) = return $ List []
 eval badform = throwError $ BadSpecialForm "Unrecognized form" badform
