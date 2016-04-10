@@ -2,11 +2,21 @@ import LispVal
 import LispError
 import SchemeParsers
 import SchemeEval
+import SchemeEnv
 import Control.Monad
 import Control.Applicative
 import Data.List
 import System.Environment
 import System.IO
+
+main :: IO ()
+main = do
+    args <- getArgs
+    case args of
+        [] -> runRepl
+        otherwise -> do
+            env <- nullEnv
+            forM_ args $ evalAndPrint env 
 
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
@@ -14,11 +24,11 @@ flushStr str = putStr str >> hFlush stdout
 readPrompt :: String -> IO String
 readPrompt prompt = flushStr prompt >> getLine
 
-evalString :: String -> IO String
-evalString expr = return . extractValue . trapError . fmap show $  (readExpr expr) >>= eval
+evalString :: Env -> String -> IO String
+evalString env expr = runIOError . fmap show $  (liftThrows $ readExpr expr) >>= eval env
 
-evalAndPrint :: String -> IO ()
-evalAndPrint expr = evalString expr >>= putStrLn
+evalAndPrint :: Env -> String -> IO ()
+evalAndPrint env expr = evalString env expr >>= putStrLn
 
 until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
 until_ pred prompt action = do
@@ -33,12 +43,4 @@ isQuit input = case words input of
     otherwise -> False
 
 runRepl :: IO ()
-runRepl = until_ isQuit (readPrompt "Lisp>>> ") evalAndPrint
-
-
-main :: IO ()
-main = do
-    args <- getArgs
-    case args of
-        [] -> runRepl
-        otherwise -> forM_ args evalAndPrint
+runRepl = nullEnv >>= until_ isQuit (readPrompt "Lisp>>> ") . evalAndPrint

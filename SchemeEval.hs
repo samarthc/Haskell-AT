@@ -7,81 +7,86 @@ import GHC.Real
 import Data.Complex
 import Data.Char (toLower)
 import Data.List (genericLength, genericDrop, genericTake, genericReplicate, genericIndex)
+import SchemeEnv
 
-eval :: LispVal -> Either LispError LispVal
-eval val@(Number _) = return val
-eval val@(Float _) = return val
-eval val@(Ratio _) = return val
-eval val@(Complex _) = return val
-eval val@(Character _) = return val
-eval val@(String _) = return val
-eval val@(Bool _) = return val
-eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", pred, conseq]) = do
-    result <- eval pred
+eval :: Env -> LispVal -> ErrorT LispError IO LispVal
+eval env val@(Number _) = return val
+eval env val@(Float _) = return val
+eval env val@(Ratio _) = return val
+eval env val@(Complex _) = return val
+eval env val@(Character _) = return val
+eval env val@(String _) = return val
+eval env val@(Bool _) = return val
+eval env (Atom var) = getVar env var
+eval env (List [Atom "quote", val]) = return val
+eval env (List [Atom "if", pred, conseq]) = do
+    result <- eval env pred
     case result of
         Bool False -> return Unspecified
-        otherwise -> eval conseq
-eval (List [Atom "if", pred, conseq, alt]) = do
-    result <- eval pred
+        otherwise -> eval env conseq
+eval env (List [Atom "if", pred, conseq, alt]) = do
+    result <- eval env pred
     case result of
-        Bool False -> eval alt
-        otherwise -> eval conseq
+        Bool False -> eval env alt
+        otherwise -> eval env conseq
 
-eval form@(List (Atom "case" : key : clauses)) = 
+eval env form@(List (Atom "case" : key : clauses)) = 
     if null clauses
     then return Unspecified
     else case head clauses of
-        List (Atom "else" : exprs) -> mapM eval exprs >>= return . last
+        List (Atom "else" : exprs) -> mapM (eval env) exprs >>= return . last
         List ((List datums) : exprs) -> do
-            result <- eval key
+            result <- eval env key
             equality <- mapM (\x -> eqv [result, x]) datums
             if Bool True `elem` equality
-                then mapM eval exprs >>= return . last
-                else eval $ List (Atom "case" : key : tail clauses)
+                then mapM (eval env) exprs >>= return . last
+                else eval env $ List (Atom "case" : key : tail clauses)
         otherwise -> throwError $ BadSpecialForm "ill-formed case expression" form
 
-eval form@(List (Atom "cond" : clauses)) = 
+eval env form@(List (Atom "cond" : clauses)) = 
     if null clauses
     then return Unspecified
     else case head clauses of
         List (Atom "else" : exprs) -> if (null . tail $ clauses)
-                                      then mapM eval exprs >>= return . last
+                                      then mapM (eval env) exprs >>= return . last
                                       else throwError $ BadSpecialForm "misplaced else clause" (List (Atom "else" : exprs))
         List (test : exprs) -> do
-            result <- eval test
+            result <- eval env test
             case result of
-                Bool False -> eval (List (Atom "cond" : tail clauses))
-                otherwise -> mapM eval exprs >>= return . last
+                Bool False -> eval env (List (Atom "cond" : tail clauses))
+                otherwise -> mapM (eval env) exprs >>= return . last
 
-eval (List (Atom "and" : exprs)) = 
+eval env (List (Atom "and" : exprs)) = 
     if null exprs
     then return $ Bool True
     else do
-        result <- eval $ head exprs
+        result <- eval env $ head exprs
         case result of
             Bool False -> return result
             otherwise -> if (null . tail $ exprs)
                          then return result
-                         else eval (List (Atom "and" : tail exprs))
+                         else eval env (List (Atom "and" : tail exprs))
 
-eval (List (Atom "or" : exprs)) =
+eval env (List (Atom "or" : exprs)) =
     if null exprs
     then return $ Bool False
     else do
-        result <- eval $ head exprs
+        result <- eval env $ head exprs
         case result of
-            Bool False -> eval (List (Atom "or" : tail exprs))
+            Bool False -> eval env (List (Atom "or" : tail exprs))
             otherwise -> return result
 
-eval (List (Atom func : args)) = mapM eval args >>= apply func
-eval (List []) = return $ List []
-eval badform = throwError $ BadSpecialForm "Unrecognized form" badform
+eval env (List [Atom "set!", Atom var, value]) = eval env value >>= setVar env var
 
-apply :: String -> [LispVal] -> Either LispError LispVal
+eval env (List [Atom "define", Atom var, value]) = eval env value >>= defineVar env var
+eval env (List (Atom func : args)) = mapM (eval env) args >>= apply func
+eval env (List []) = return $ List []
+eval env badform = throwError $ BadSpecialForm "Unrecognized form" badform
+
+apply :: String -> [LispVal] -> ErrorT LispError IO LispVal
 apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function" func) ($ args) $ lookup func primitives
 
-primitives :: [(String, [LispVal] -> Either LispError LispVal)]
+primitives :: [(String, [LispVal] -> ErrorT LispError IO LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
               ("*", numericBinOp (*)),
@@ -135,16 +140,16 @@ primitives = [("+", numericBinOp (+)),
               ("eqv?", eqv),
               ("equal?", equal)]
 
-numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
+numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ErrorT LispError IO LispVal
 numericBinOp _ [] = throwError $ NumArgs 2 []
 numericBinOp _ val@[_] = throwError $ NumArgs 2 val
 numericBinOp op params = mapM unpackNum params >>= return . Number . foldl1 op
 
-predicate :: (LispVal -> Bool) -> [LispVal] -> Either LispError LispVal
+predicate :: (LispVal -> Bool) -> [LispVal] -> ErrorT LispError IO LispVal
 predicate pred [val] = return . Bool $ pred val
 predicate pred args = throwError $ NumArgs 1 args
 
-conversion :: (LispVal -> Either LispError LispVal) -> [LispVal] -> Either LispError LispVal
+conversion :: (LispVal -> ErrorT LispError IO LispVal) -> [LispVal] -> ErrorT LispError IO LispVal
 conversion conv [val] = conv val
 conversion _ args = throwError $ NumArgs 1 args
 
@@ -152,29 +157,29 @@ numCompare = boolBinOp unpackNum
 boolCombine = boolBinOp unpackBool
 strCompare = boolBinOp unpackStr
 strComparei = boolBinOp unpackStri
-boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
+boolBinOp :: (LispVal -> ErrorT LispError IO a) -> (a -> a -> Bool) -> [LispVal] -> ErrorT LispError IO LispVal
 boolBinOp unpacker op args = if length args /= 2
                              then throwError $ NumArgs 2 args
                              else do left <- (unpacker . head $ args)
                                      right <- (unpacker . head . tail $ args)
                                      return . Bool $ left `op` right
 
-unpackNum :: Num a => LispVal -> Either LispError a
+unpackNum :: Num a => LispVal -> ErrorT LispError IO a
 unpackNum (Number num) = return $ fromIntegral num
 unpackNum notNum = throwError $ TypeMismatch "number" notNum
 --unpackNum (Float num) = num
 --unpackNum (Ratio num) = fromRational num
 --unpackNum (Complex num) = num
 
-unpackBool :: LispVal -> Either LispError Bool
+unpackBool :: LispVal -> ErrorT LispError IO Bool
 unpackBool (Bool bool) = return bool
 unpackBool notBool = throwError $ TypeMismatch "bool" notBool
 
-unpackStr :: LispVal -> Either LispError String
+unpackStr :: LispVal -> ErrorT LispError IO String
 unpackStr (String str) = return str
 unpackStr notStr = throwError $ TypeMismatch "string" notStr
 
-unpackStri :: LispVal -> Either LispError String
+unpackStri :: LispVal -> ErrorT LispError IO String
 unpackStri (String str) = return . map toLower $ str
 unpackStri notStr = throwError $ TypeMismatch "string" notStr
 
@@ -228,7 +233,7 @@ frac x
     | (x-1) < 0 = x
     | otherwise = frac (x-1)
 
-sym2str, str2sym, str2list, list2str :: LispVal -> Either LispError LispVal
+sym2str, str2sym, str2list, list2str :: LispVal -> ErrorT LispError IO LispVal
 sym2str (Atom s) = return $ String s
 sym2str badArg = throwError $ TypeMismatch "symbol" badArg
 
@@ -243,7 +248,7 @@ list2str (List ((Character ch):xs)) = list2str (List xs) >>= unpackStr >>= retur
 list2str (List (badArg:_)) = throwError $ TypeMismatch "character" badArg
 list2str badArg = throwError $ TypeMismatch "list" badArg
 
-makeString :: [LispVal] -> Either LispError LispVal
+makeString :: [LispVal] -> ErrorT LispError IO LispVal
 makeString [] = throwError $ NumArgs 2 []
 makeString [(Number len)] = return . String $ genericReplicate len '\NUL'
 makeString [badArg] = throwError $ TypeMismatch "integer" badArg
@@ -252,17 +257,17 @@ makeString [(Number len), badArg] = throwError $ TypeMismatch "character" badArg
 makeString [badArg, _] = throwError $ TypeMismatch "integer" badArg
 makeString badArgList = throwError $ NumArgs 2 badArgList
 
-newString :: [LispVal] -> Either LispError LispVal
+newString :: [LispVal] -> ErrorT LispError IO LispVal
 newString [] = return . String $ ""
 newString ((Character ch):xs) = newString xs >>= unpackStr >>= return . String . (ch:)
 newString (badArg:_) = throwError $ TypeMismatch "character" badArg
 
-strLen :: [LispVal] -> Either LispError LispVal
+strLen :: [LispVal] -> ErrorT LispError IO LispVal
 strLen [(String str)] = return . Number . genericLength $ str
 strLen [badArg] = throwError $ TypeMismatch "string" badArg
 strLen badArgList = throwError $ NumArgs 1 badArgList
 
-strRef :: [LispVal] -> Either LispError LispVal
+strRef :: [LispVal] -> ErrorT LispError IO LispVal
 strRef [(String str), (Number i)]
     | i>=0 && i < genericLength str = return . Character $ str `genericIndex` i
     | otherwise = throwError $ Default "index out of range"
@@ -270,7 +275,7 @@ strRef [badArg, (Number _)] = throwError $ TypeMismatch "string" badArg
 strRef [(String str), badArg] = throwError $ TypeMismatch "integer" badArg
 strRef badArgList = throwError $ NumArgs 2 badArgList
 
-subStr :: [LispVal] -> Either LispError LispVal
+subStr :: [LispVal] -> ErrorT LispError IO LispVal
 subStr [(String str), (Number start), (Number end)]
     | start < 0 || start > genericLength str = throwError $ Default "first index out of range"
     | end < 0 || end > genericLength str = throwError $ Default "second index out of range"
@@ -281,31 +286,31 @@ subStr [_, badArg, (Number _)] = throwError $ TypeMismatch "integer" badArg
 subStr [_, _, badArg] = throwError $ TypeMismatch "integer" badArg
 subStr badArgList = throwError $ NumArgs 3 badArgList
 
-strApp :: [LispVal] -> Either LispError LispVal
+strApp :: [LispVal] -> ErrorT LispError IO LispVal
 strApp [] = return . String $ ""
 strApp ((String str):xs) = strApp xs >>= unpackStr >>= return . String . (str++)
 strApp (badArg:_) = throwError $ TypeMismatch "string" badArg
 
-car :: [LispVal] -> Either LispError LispVal
+car :: [LispVal] -> ErrorT LispError IO LispVal
 car [List (x:xs)] = return x
 car [DottedList (x:xs) _] = return x
 car [badArg] = throwError $ TypeMismatch "pair" badArg
 car badArgList = throwError $ NumArgs 1 badArgList
 
-cdr :: [LispVal] -> Either LispError LispVal
+cdr :: [LispVal] -> ErrorT LispError IO LispVal
 cdr [List (_ : xs)] = return $ List xs
 cdr [DottedList [_] x] = return x
 cdr [DottedList (_:xs) x] = return $ DottedList xs x
 cdr [badArg] = throwError $ TypeMismatch "pair" badArg
 cdr badArgList = throwError $ NumArgs 1 badArgList
 
-cons :: [LispVal] -> Either LispError LispVal
+cons :: [LispVal] -> ErrorT LispError IO LispVal
 cons [x, List xs] = return $ List (x:xs)
 cons [x, DottedList xs last] = return $ DottedList (x:xs) last
 cons [x, y] = return $ DottedList [x] y
 cons badArgList = throwError $ NumArgs 2 badArgList
 
-eqv :: [LispVal] -> Either LispError LispVal
+eqv :: [LispVal] -> ErrorT LispError IO LispVal
 eqv [(Bool arg1), (Bool arg2)] = return . Bool $ arg1 == arg2
 eqv [(Number arg1), (Number arg2)] = return . Bool $ arg1 == arg2
 eqv [(String arg1), (String arg2)] = return . Bool $ arg1 == arg2
@@ -314,7 +319,7 @@ eqv [(List []), (List [])] = return . Bool $ True
 eqv [_, _] = return . Bool $ False
 eqv badArgList = throwError $ NumArgs 2 badArgList
 
-equal :: [LispVal] -> Either LispError LispVal
+equal :: [LispVal] -> ErrorT LispError IO LispVal
 equal val@[(Bool _), (Bool _)] = eqv val
 equal val@[(Number _), (Number _)] = eqv val
 equal val@[(String _), (String _)] = eqv val
