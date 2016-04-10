@@ -44,7 +44,6 @@ defineVar envRef var value = do
 
 bindVars :: Env -> [(String, LispVal)] -> IO Env
 bindVars envRef bindings = readIORef envRef >>= extendEnv bindings >>= newIORef
-    where
-    extendEnv bindings env = liftM (++env) >>= (mapM addBinding bindings)
-    addBinding (var, value) = newIORef value >>= \x -> return (x, value)
+    where extendEnv bindings env = liftM (++env) (mapM addBinding bindings)
+          addBinding (var, value) = newIORef value >>= \x -> return (var, x)
 
