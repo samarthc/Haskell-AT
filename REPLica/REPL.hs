@@ -14,13 +14,13 @@ import System.IO
 main :: IO ()
 main = do
     args <- getArgs
+    env <- primitiveBindings
     case args of
-        [] -> return ()
-        [filename] -> do
-            env <- primitiveBindings
-            (runIOError . fmap show . eval env $ (List [Atom "load", String filename])) >>= hPutStrLn stderr
-        otherwise -> putStrLn "Expected just one filename; no files loaded"
-    runRepl
+        [] -> runRepl env
+        [filename] -> evalAndPrint env (Just $ "(load \"" ++ filename ++"\")")  >> runRepl env
+        otherwise -> do
+            putStrLn "Expected just one filename; no files loaded"
+            runRepl env
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = runInputT defaultSettings $ getInputLine prompt
@@ -46,5 +46,5 @@ isQuit input = case fmap words input of
     Just ["exit"] -> True
     otherwise -> False
 
-runRepl :: IO ()
-runRepl = primitiveBindings >>= until_ isQuit (readPrompt "Lisp>>> ") . evalAndPrint
+runRepl :: Env -> IO ()
+runRepl env = until_ isQuit (readPrompt "Lisp>>> ") $ evalAndPrint env
