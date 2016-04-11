@@ -4,6 +4,7 @@ import SchemeEval
 import SchemeEnv
 import SchemeInit
 import Control.Monad
+import Control.Monad.Error
 import Control.Applicative
 import Data.List
 import System.Console.Haskeline
@@ -14,10 +15,12 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        [] -> runRepl
-        otherwise -> do
+        [] -> return ()
+        [filename] -> do
             env <- primitiveBindings
-            forM_ (map Just args) $ evalAndPrint env 
+            (runIOError . fmap show . eval env $ (List [Atom "load", String filename])) >>= hPutStrLn stderr
+        otherwise -> putStrLn "Expected just one filename; no files loaded"
+    runRepl
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = runInputT defaultSettings $ getInputLine prompt
@@ -30,11 +33,12 @@ evalString env (Just expr) = runIOError . fmap show $  (liftThrows $ readExpr ex
 evalAndPrint :: Env -> Maybe String -> IO ()
 evalAndPrint env expr = evalString env expr >>= putStrLn
 
-until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
+until_ :: (a -> Bool) -> IO a -> (a -> IO ()) -> IO ()
 until_ pred prompt action = do
     result <- prompt
-    when (not $ pred result) $ do
-        action result >> until_ pred prompt action
+    if (pred result) 
+        then putStrLn "Moriturus te saluto"
+        else action result >> until_ pred prompt action
 
 isQuit :: Maybe String -> Bool
 isQuit input = case fmap words input of
