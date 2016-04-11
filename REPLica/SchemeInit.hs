@@ -43,8 +43,6 @@ primitives = [("+", numericBinOp (+)),
               ("/=", numCompare (/=)),
               (">=", numCompare (>=)),
               ("<=", numCompare (<=)),
-              ("&&", boolCombine (&&)),
-              ("||", boolCombine (||)),
               ("string=?", strCompare (==)),
               ("string<?", strCompare (<)),
               ("string>?", strCompare (>)),
@@ -84,7 +82,6 @@ conversion conv [val] = conv val
 conversion _ args = throwError $ NumArgs 1 args
 
 numCompare = boolBinOp unpackNum
-boolCombine = boolBinOp unpackBool
 strCompare = boolBinOp unpackStr
 strComparei = boolBinOp unpackStri
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
