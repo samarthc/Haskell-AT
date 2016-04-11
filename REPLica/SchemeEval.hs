@@ -89,10 +89,14 @@ eval env (List (Atom "lambda" : vararg@(Atom _) : body)) = makeVarFunc vararg en
 
 eval env (List [Atom "load", String filename]) = load filename >>= fmap last . mapM (eval env)
 
-eval env (List ((Atom "apply"):func:args)) = do
+eval env (List [Atom "apply", func, args]) = do
     function <- eval env func
-    argVals <- mapM (eval env) args
-    apply func argVals
+    argVals <- eval env args
+    apply function (unwrap argVals)
+    where
+        unwrap :: LispVal -> [LispVal]
+        unwrap (List list) = list
+        unwrap val = [val]
 
 eval env (List (function : args)) = do
     func <- eval env function
