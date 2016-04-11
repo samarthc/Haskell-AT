@@ -7,6 +7,7 @@ import Data.Array
 import Data.IORef
 import Data.Foldable (Foldable(..))
 import Data.List (unwords)
+import System.IO
 import Text.ParserCombinators.Parsec (ParseError)
 
 type Env = IORef [(String, IORef LispVal)]
@@ -22,7 +23,9 @@ data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
              | Vector (Array Int LispVal)
+             | Port Handle
              | PrimitiveFunc ([LispVal] -> Either LispError LispVal)
+             | IOFunc ([LispVal] -> ErrorT LispError IO LispVal)
              | Func { params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env}
              | Unspecified --deriving (Eq)
 
@@ -38,7 +41,9 @@ instance Show LispVal where
     show (List list) = "(" ++  (unwords . map show) list ++ ")"
     show (DottedList list val) = "(" ++ (unwords . map show) list ++ " . " ++ show val ++ ")"
     show (Vector array) = let list = foldMap (:[]) array in "#(" ++ (unwords . map show) list ++ ")"
+    show (Port handle) = "Port: " ++ show handle
     show (PrimitiveFunc _) = "<primitive>"
+    show (IOFunc _) = "<IO primitive>"
     show (Func args Nothing body env) = "(lambda (" ++ unwords args ++ ") ...)"
     show (Func args (Just vararg) body env) = "(lambda (" ++ unwords args ++ " . " ++ vararg ++ ") ...)"
     show Unspecified = "unspecified value"
@@ -52,9 +57,8 @@ instance Eq LispVal where
     (Character c1) == (Character c2) = c1 == c2
     (String s1) == (String s2) = s1 == s2
     (Bool b1) == (Bool b2) = b1 == b2
-    (List l1) == (List l2) = l1 == l2
-    (DottedList l1 d1) == (DottedList l2 d2) = d1 == d2 && l1 == l2
-    (Vector v1) == (Vector v2) = v1 == v2
+    (List []) == (List []) = True
+    (Port p1) == (Port p2) = p1 == p2
     _ == _ = False
 
 data LispError = NumArgs Integer [LispVal]
