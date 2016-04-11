@@ -48,31 +48,48 @@ parseNumber :: Parser LispVal
 parseNumber = parseBin <|> parseOct <|> parseDecIndicated <|> parseHex <|> parseDecSimple
 
 parseDecSimple :: Parser LispVal
-parseDecSimple = fmap (Number . read) $ many1 digit
+parseDecSimple = do
+    negative <- optionMaybe . try $ char '-'
+    num <- fmap read $ many1 digit
+    case negative of
+        Just '-' -> return . Number . negate $ num
+        Nothing -> return . Number $ num
 
 parseDecIndicated :: Parser LispVal
 parseDecIndicated = do
     try $ string "#d"
-    fmap (Number . read) $ many1 digit
+    parseDecSimple
 
 parseHex :: Parser LispVal
 parseHex = do
     try $ string "#x"
-    fmap (Number . hex2dec) $ many1 hexDigit
+    negative <- optionMaybe . try $ char '-'
+    num <- fmap hex2dec $ many1 hexDigit
+    case negative of
+        Just '-' -> return . Number . negate $ num
+        Nothing -> return . Number $ num
     where
         hex2dec = fst . head . readHex
 
 parseOct :: Parser LispVal
 parseOct = do
     try $ string "#o"
-    fmap (Number . oct2dec) $ many1 octDigit
+    negative <- optionMaybe . try $ char '-'
+    num <- fmap oct2dec $ many1 octDigit
+    case negative of
+        Just '-' -> return . Number . negate $ num
+        Nothing -> return . Number $ num
     where
         oct2dec = fst . head . readOct
 
 parseBin :: Parser LispVal
 parseBin = do
     try $ string "#b"
-    fmap (Number . bin2dec) $ many1 (oneOf "10")
+    negative <- optionMaybe . try $ char '-'
+    num <- fmap bin2dec . many1 $ oneOf "10"
+    case negative of
+        Just '-' -> return . Number . negate $ num
+        Nothing -> return . Number $ num
     where
         bin2dec = bin2decAux 0
         bin2decAux num "" = num
@@ -80,17 +97,23 @@ parseBin = do
 
 parseFloat :: Parser LispVal
 parseFloat = do
+    negative <- optionMaybe . try $ char '-'
     x <- many1 digit
     char '.'
     y <- many1 digit
-    return . Float . read $ x ++ "." ++ y
+    case negative of
+        Just '-' -> return . Float . negate . read $ x ++ "." ++ y
+        Nothing -> return . Float . read $ x ++ "." ++ y
 
 parseRatio :: Parser LispVal
 parseRatio = do
+    negative <- optionMaybe . try $ char '-'
     x <- many1 digit
     char '/'
     y <- many1 digit
-    return . Ratio $ read x % read y
+    case negative of
+        Just '-' -> return . Ratio . negate $ read x % read y
+        Nothing -> return . Ratio $ read x % read y
 
 parseComplex :: Parser LispVal
 parseComplex = do
@@ -172,7 +195,7 @@ parseUnQuote = do
     return $ List [Atom "unquote", x]
 
 parseExpr :: Parser LispVal
-parseExpr = try parseList <|> parseDottedList <|> parseAtom <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote
+parseExpr = try parseList <|> parseDottedList <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote <|> parseAtom
 
 readExpr :: String -> Either LispError LispVal
 readExpr input = case parse (spaces >> parseExpr) "lisp" input of
