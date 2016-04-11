@@ -12,8 +12,6 @@ import Data.Ratio
 import Data.Complex
 import Data.Array
 import LispVal
-import LispError
-import SchemeEval
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
