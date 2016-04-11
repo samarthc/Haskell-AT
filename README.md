@@ -17,4 +17,4 @@ Deadline | Task
 ##REPLica
 REPLica is a Scheme interpreter that implements a decent subset of the [R5RS standard](http://www.schemers.org/Documents/Standards/R5RS/) with some extensions and a small standard library following (mostly) [Write Yourself a Scheme in 48 hours](https://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours).
 
-All the files for REPLica are [here](../blob/master/REPLica).
+All the files for REPLica are [here](../tree/master/REPLica).
