@@ -33,7 +33,7 @@ eval env form@(List (Atom "case" : key : clauses)) =
         List (Atom "else" : exprs) -> mapM (eval env) exprs >>= return . last
         List ((List datums) : exprs) -> do
             result <- eval env key
-            equality <- mapM (\x -> liftThrows $ eqv [result, x]) datums
+            equality <- mapM (\x -> return . Bool $ result == x) datums
             if Bool True `elem` equality
                 then mapM (eval env) exprs >>= return . last
                 else eval env $ List (Atom "case" : key : tail clauses)
@@ -96,6 +96,7 @@ eval env badform = throwError $ BadSpecialForm "Unrecognized form" badform
 
 apply :: LispVal -> [LispVal] -> ErrorT LispError IO LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
+apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args =
     if genericLength params /= genericLength args && varargs == Nothing
         then throwError $ NumArgs (genericLength params) args

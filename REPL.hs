@@ -2,6 +2,7 @@ import LispVal
 import SchemeParsers
 import SchemeEval
 import SchemeEnv
+import SchemeInit
 import Control.Monad
 import Control.Applicative
 import Data.List

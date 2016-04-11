@@ -197,7 +197,13 @@ parseUnQuote = do
 parseExpr :: Parser LispVal
 parseExpr = try parseList <|> parseDottedList <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote <|> parseAtom
 
-readExpr :: String -> Either LispError LispVal
-readExpr input = case parse (spaces >> parseExpr) "lisp" input of
+readParametrized :: Parser a -> String -> Either LispError a
+readParametrized parser input = case parse parser "" input of
     Left err -> throwError $ Parser err
     Right val -> return val
+
+readExpr :: String -> Either LispError LispVal
+readExpr = readParametrized (spaces >> parseExpr)
+
+readExprList :: String -> Either LispError [LispVal]
+readExprList = readParametrized (parseExpr `endBy` spaces)
