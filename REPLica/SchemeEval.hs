@@ -4,6 +4,7 @@ import LispVal
 import Control.Monad.Error
 import Data.List (genericLength, genericDrop)
 import SchemeEnv
+import SchemeInit
 
 eval :: Env -> LispVal -> ErrorT LispError IO LispVal
 eval env val@(Number _) = return val
@@ -85,6 +86,13 @@ eval env (List (Atom "lambda" : List params : body)) = makeNormalFunc env params
 eval env (List (Atom "lambda" : DottedList params varArgs : body)) = makeVarFunc varArgs env params body
 
 eval env (List (Atom "lambda" : vararg@(Atom _) : body)) = makeVarFunc vararg env [] body
+
+eval env (List [Atom "load", String filename]) = load filename >>= fmap last . mapM (eval env)
+
+eval env (List ((Atom "apply"):func:args)) = do
+    function <- eval env func
+    argVals <- mapM (eval env) args
+    apply func argVals
 
 eval env (List (function : args)) = do
     func <- eval env function

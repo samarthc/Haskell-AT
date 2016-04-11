@@ -1,7 +1,6 @@
 module SchemeInit where
 
 import SchemeEnv
-import SchemeEval
 import SchemeParsers
 import LispVal
 import GHC.Real
@@ -268,18 +267,14 @@ equal [_, _] = return . Bool $ False
 equal badArgList = throwError $ NumArgs 2 badArgList
 
 ioPrimitives :: [(String, [LispVal] -> ErrorT LispError IO LispVal)]
-ioPrimitives = [("", applyProc),
-                ("open-input-file", makePort ReadMode),
+ioPrimitives = [("open-input-file", makePort ReadMode),
                 ("open-output-file", makePort WriteMode),
                 ("close-input-port", closePort),
                 ("close-output-port", closePort),
                 ("read", readProc),
                 ("write", writeProc),
-                ("read-contents", readContents)]--,
-                --("read-all", readAll)]
-
-applyProc :: [LispVal] -> ErrorT LispError IO LispVal
-applyProc (func : args) = apply func args
+                ("read-contents", readContents),
+                ("read-all", readAll)]
 
 makePort :: IOMode -> [LispVal] -> ErrorT LispError IO LispVal
 makePort mode [String filename] = fmap Port . liftIO $ openFile filename mode
@@ -306,3 +301,10 @@ readContents [String filename] = fmap String . liftIO $ readFile filename
 readContents [badArg] = throwError $ TypeMismatch "string" badArg
 readContents badArgList = throwError $ NumArgs 1 badArgList
 
+load :: String -> ErrorT LispError IO [LispVal]
+load filename = (liftIO $ readFile filename) >>= (liftThrows . readExprList)
+
+readAll :: [LispVal] -> ErrorT LispError IO LispVal
+readAll [String filename] = fmap List $ load filename
+readAll [badArg] = throwError $ TypeMismatch "string" badArg
+readAll badArgList = throwError $ NumArgs 1 badArgList
