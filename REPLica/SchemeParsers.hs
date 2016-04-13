@@ -149,9 +149,11 @@ parseComplex = do
     spaces
     char '+'
     spaces
-    y <- (try parseFloat <|> parseNumber)
+    imag <- optionMaybe (try parseFloat <|> parseNumber)
     char 'i'
-    return $ Complex (toDouble x :+ toDouble y)
+    case imag of
+        Nothing -> return $ Complex (toDouble x :+ 1)
+        Just y -> return $ Complex (toDouble x :+ toDouble y)
     where
         toDouble (Float f) = realToFrac f
         toDouble (Number n) = fromIntegral n
