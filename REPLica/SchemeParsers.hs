@@ -25,11 +25,11 @@ readExpr :: String -> Either LispError LispVal
 readExpr = readParametrized (spaces >> parseExpr >>= noRemainingInput)
 
 readExprList :: String -> Either LispError [LispVal]
-readExprList = readParametrized ((parseExpr >>= noRemainingInput) `endBy` spaces)
+readExprList = readParametrized ((parseExpr `endBy` spaces) >>= noRemainingInput)
 
-noRemainingInput :: LispVal -> Parser LispVal
+noRemainingInput :: a -> Parser a
 noRemainingInput parsed = do
-    spaces
+    optionMaybe spaces
     remaining <- getInput
     if (null remaining)
     then return parsed
