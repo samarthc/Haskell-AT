@@ -23,7 +23,10 @@ main = do
     runRepl env
 
 loadStdLib :: Env -> IO ()
-loadStdLib env = evalAndPrint env $ Just "(load \"stdlib.scm\")"
+loadStdLib env = do
+    putStrLn "Loading stdlib.scm ..."
+    evalString env $ Just "(load \"stdlib.scm\")"
+    putStrLn "stdlib loaded."
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = runInputT defaultSettings $ getInputLine prompt
@@ -50,4 +53,4 @@ isQuit input = case fmap words input of
     otherwise -> False
 
 runRepl :: Env -> IO ()
-runRepl env = until_ isQuit (readPrompt "Lisp>>> ") $ evalAndPrint env
+runRepl env = until_ isQuit (readPrompt ">> ") $ evalAndPrint env

@@ -14,7 +14,7 @@ import Data.Array
 import LispVal
 
 parseExpr :: Parser LispVal
-parseExpr = try parseSingleLineCommentExpr <|> try parseList <|> parseDottedList <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote <|> parseAtom
+parseExpr = try parseSingleLineCommentExpr <|> try parseList <|> parseDottedList <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseComplex <|> try parseFloat <|> try parseRatio <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote <|> parseAtom
 
 readParametrized :: Parser a -> String -> Either LispError a
 readParametrized parser input = case parse parser "" input of
