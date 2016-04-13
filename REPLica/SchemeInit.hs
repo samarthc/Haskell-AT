@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module SchemeInit where
 
 import SchemeEnv
@@ -10,6 +11,8 @@ import Data.Complex
 import Data.IORef
 import Data.List (genericTake, genericLength, genericDrop, genericIndex, genericReplicate)
 import System.IO
+import System.IO.Unsafe
+import Control.Exception
 
 primitiveBindings :: IO Env
 primitiveBindings = nullEnv >>= (flip bindVars $ map (makeFunc PrimitiveFunc) primitives ++ map (makeFunc IOFunc) ioPrimitives)
@@ -301,10 +304,24 @@ readContents [String filename] = fmap String . liftIO $ readFile filename
 readContents [badArg] = throwError $ TypeMismatch "string" badArg
 readContents badArgList = throwError $ NumArgs 1 badArgList
 
+
+readerr :: String -> IO (Either LispError [LispVal])
+readerr filename = do 
+                    result <- try (readFile filename)
+	            case result of
+	             (Right filecontent) -> return $ (readExprList filecontent)
+	             (Left (ex :: IOException)) -> return $ Left (Default (show ex) )
+
 load :: String -> ErrorT LispError IO [LispVal]
-load filename = (liftIO $ readFile filename) >>= (liftThrows . readExprList)
+load filename = liftThrows (unsafePerformIO a)
+         where a = do 
+	            val <- (readerr filename) 
+	 	    case val of
+		        (Left error) -> return (Left error)
+		 	(Right vals) -> return (Right vals)
 
 readAll :: [LispVal] -> ErrorT LispError IO LispVal
 readAll [String filename] = fmap List $ load filename
 readAll [badArg] = throwError $ TypeMismatch "string" badArg
 readAll badArgList = throwError $ NumArgs 1 badArgList
+
