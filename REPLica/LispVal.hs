@@ -27,7 +27,9 @@ data LispVal = Atom String
              | PrimitiveFunc ([LispVal] -> Either LispError LispVal)
              | IOFunc ([LispVal] -> ErrorT LispError IO LispVal)
              | Func { params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env}
+	     | Comment String -- ignore this
              | Unspecified --deriving (Eq)
+
 
 instance Show LispVal where
     show (Atom name) = name
@@ -46,6 +48,7 @@ instance Show LispVal where
     show (IOFunc _) = "<IO primitive>"
     show (Func args Nothing body env) = "(lambda (" ++ unwords args ++ ") ...)"
     show (Func args (Just vararg) body env) = "(lambda (" ++ unwords args ++ " . " ++ vararg ++ ") ...)"
+    show (Comment c) = ""
     show Unspecified = "unspecified value"
 
 instance Eq LispVal where
