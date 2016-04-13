@@ -278,6 +278,7 @@ cons badArgList = throwError $ NumArgs "" 2 badArgList
 eqv :: [LispVal] -> Either LispError LispVal
 eqv [(Bool arg1), (Bool arg2)] = return . Bool $ arg1 == arg2
 eqv [(Number arg1), (Number arg2)] = return . Bool $ arg1 == arg2
+eqv [(Character arg1), (Character arg2)] = return . Bool $ arg1 == arg2
 eqv [(String arg1), (String arg2)] = return . Bool $ arg1 == arg2
 eqv [(Atom arg1), (Atom arg2)] = return . Bool $ arg1 == arg2
 eqv [(List []), (List [])] = return . Bool $ True
@@ -287,6 +288,7 @@ eqv badArgList = throwError $ NumArgs "" 2 badArgList
 equal :: [LispVal] -> Either LispError LispVal
 equal val@[(Bool _), (Bool _)] = eqv val
 equal val@[(Number _), (Number _)] = eqv val
+equal val@[(Character _), (Character _)] = eqv val
 equal val@[(String _), (String _)] = eqv val
 equal val@[(Atom _), (Atom _)] = eqv val
 equal [(DottedList xs x), (DottedList ys y)] = equal [List (xs ++ [x]), List (ys ++ [y])]
