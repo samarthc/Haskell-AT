@@ -4,7 +4,7 @@ module SchemeInit where
 import SchemeEnv
 import SchemeParsers
 import LispVal
-import GHC.Real
+import Data.Ratio
 import Control.Monad.Error
 import Data.Char (toLower)
 import Data.Complex
@@ -23,10 +23,9 @@ primitives :: [(String, [LispVal] -> Either LispError LispVal)]
 primitives = [("+", numericBinOp (+)),
               ("-", numericBinOp (-)),
               ("*", numericBinOp (*)),
-              ("/", numericBinOp div),
-              ("mod", numericBinOp mod),
-              ("quotient", numericBinOp quot),
-              ("remainder", numericBinOp rem),
+              ("/", numericBinOp (/)),
+              ("quotient", integralBinOp quot),
+              ("remainder", integralBinOp rem),
               ("symbol?", predicate symbolp),
               ("string?", predicate stringp),
               ("bool?", predicate boolp),
@@ -40,10 +39,10 @@ primitives = [("+", numericBinOp (+)),
               ("integer?", predicate integerp),
               ("symbol->string", conversion sym2str),
               ("string->symbol", conversion str2sym),
-              ("=", numCompare (==)),
+              ("=", numEq (==)),
               ("<", numCompare (<)),
               (">", numCompare (>)),
-              ("/=", numCompare (/=)),
+              ("/=", numEq (/=)),
               (">=", numCompare (>=)),
               ("<=", numCompare (<=)),
               ("string=?", strCompare (==)),
@@ -71,10 +70,15 @@ primitives = [("+", numericBinOp (+)),
               ("eqv?", eqv),
               ("equal?", equal)]
 
-numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
+numericBinOp :: (Complex Double -> Complex Double -> Complex Double) -> [LispVal] -> Either LispError LispVal
 numericBinOp _ [] = throwError $ NumArgs 2 []
 numericBinOp _ val@[_] = throwError $ NumArgs 2 val
-numericBinOp op params = mapM unpackNum params >>= return . Number . foldl1 op
+numericBinOp op params = mapM unpackNum params >>= return . packNum . foldl1 op
+
+integralBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
+integralBinOp _ [] = throwError $ NumArgs 2 []
+integralBinOp _ val@[_] = throwError $ NumArgs 2 val
+integralBinOp op params = mapM unpackIntegral params >>= return . Number . foldl1 op
 
 predicate :: (LispVal -> Bool) -> [LispVal] -> Either LispError LispVal
 predicate pred [val] = return . Bool $ pred val
@@ -84,9 +88,11 @@ conversion :: (LispVal -> Either LispError LispVal) -> [LispVal] -> Either LispE
 conversion conv [val] = conv val
 conversion _ args = throwError $ NumArgs 1 args
 
-numCompare = boolBinOp unpackNum
+numEq = boolBinOp unpackNum
+numCompare = boolBinOp unpackNoComplex
 strCompare = boolBinOp unpackStr
 strComparei = boolBinOp unpackStri
+
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
 boolBinOp unpacker op args = if length args /= 2
                              then throwError $ NumArgs 2 args
@@ -94,12 +100,28 @@ boolBinOp unpacker op args = if length args /= 2
                                      right <- (unpacker . head . tail $ args)
                                      return . Bool $ left `op` right
 
-unpackNum :: Num a => LispVal -> Either LispError a
+packNum :: Complex Double -> LispVal
+packNum x@(a :+ b)
+    | b /= 0 = Complex x
+    | a == fromIntegral (round a) = Number $ round a
+    | otherwise = Float $ a
+
+unpackNum :: LispVal -> Either LispError (Complex Double)
 unpackNum (Number num) = return $ fromIntegral num
+unpackNum (Float num) = return $ realToFrac num
+unpackNum (Ratio num) = return $ fromRational num
+unpackNum (Complex num) = return num
 unpackNum notNum = throwError $ TypeMismatch "number" notNum
---unpackNum (Float num) = num
---unpackNum (Ratio num) = fromRational num
---unpackNum (Complex num) = num
+
+unpackNoComplex :: LispVal -> Either LispError Double
+unpackNoComplex val 
+    | realp val = fmap realPart $ unpackNum val
+    | otherwise = throwError $ TypeMismatch "integer, float or rational" val
+
+unpackIntegral :: LispVal -> Either LispError Integer
+unpackIntegral val
+    | integerp val = fmap (round . realPart) $ unpackNum val 
+    | otherwise = throwError $ TypeMismatch "integer" val
 
 unpackBool :: LispVal -> Either LispError Bool
 unpackBool (Bool bool) = return bool
@@ -151,7 +173,7 @@ rationalp = realp
 integerp (Number _) = True
 integerp (Complex (a :+ 0)) = isInt a
 integerp (Float a) = isInt a
-integerp (Ratio (_ :% 1)) = True
+integerp (Ratio a) = denominator a == 1
 integerp _ = False
 
 isInt :: Double -> Bool

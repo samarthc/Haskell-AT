@@ -35,8 +35,8 @@ instance Show LispVal where
     show (Atom name) = name
     show (Number num) = show num
     show (Float num) = show num
-    show (Ratio num) = show num
-    show (Complex num) = show num
+    show (Ratio num) = show (numerator num) ++ "/" ++ show (denominator num)
+    show (Complex num) = show (realPart num) ++ " + " ++ show (imagPart num) ++ "i"
     show (Character ch) = "#\\" ++ [ch]
     show (String str) = "\"" ++ str ++ "\""
     show (Bool bool) = if bool then "#t" else "#f"
