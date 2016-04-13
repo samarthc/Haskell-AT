@@ -27,6 +27,9 @@ eval env (List [Atom "if", pred, conseq, alt]) = do
         Bool False -> eval env alt
         otherwise -> eval env conseq
 
+eval env (Comment c) = do
+    return (Comment c)    
+
 eval env form@(List (Atom "case" : key : clauses)) = 
     if null clauses
     then return Unspecified

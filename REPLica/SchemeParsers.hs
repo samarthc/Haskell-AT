@@ -14,7 +14,7 @@ import Data.Array
 import LispVal
 
 parseExpr :: Parser LispVal
-parseExpr = try parseList <|> parseDottedList <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote <|> parseAtom
+parseExpr = try parseSingleLineCommentExpr <|> try parseList <|> parseDottedList <|> try parseVector <|> try parseCharacter <|> parseString <|> try parseFloat <|> try parseRatio <|> try parseComplex <|> parseNumber <|> parseBool <|> parseQuoted <|> parseQuasiQuoted <|> parseUnQuote <|> parseAtom
 
 readParametrized :: Parser a -> String -> Either LispError a
 readParametrized parser input = case parse parser "" input of
@@ -25,13 +25,16 @@ readExpr :: String -> Either LispError LispVal
 readExpr = readParametrized (spaces >> parseExpr)
 
 readExprList :: String -> Either LispError [LispVal]
-readExprList = readParametrized (parseExpr `endBy` spaces)
+readExprList = readParametrized (parseExpr `endBy` spacesOrComment)
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
 
 spaces :: Parser ()
 spaces = skipMany space
+
+spacesOrComment :: Parser ()
+spacesOrComment = try spaces <|> try parseSingleLineComment
 
 -- | Parser that matches a string without matching case
 stringi :: String -> Parser String
@@ -50,6 +53,17 @@ escapedChars = do
         't' -> '\t'
         'r' -> '\r'
         _ -> x
+
+parseSingleLineComment :: Parser ()
+parseSingleLineComment = do
+	char ';'
+	skipMany $ noneOf "\n"
+
+parseSingleLineCommentExpr :: Parser LispVal
+parseSingleLineCommentExpr = do
+	start <- char ';'
+	comment <- many $ noneOf "\n"
+	return $ Comment (start:comment)
 
 parseAtom :: Parser LispVal
 parseAtom = do
