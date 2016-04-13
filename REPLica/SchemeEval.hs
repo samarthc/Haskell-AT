@@ -104,7 +104,12 @@ eval env (List [Atom "apply", func, args]) = do
 eval env (List (function : args)) = do
     func <- eval env function
     argVals <- mapM (eval env) args
-    apply func argVals
+    (apply func argVals) `catchError` handler
+    where
+        handler :: LispError -> ErrorT LispError IO LispVal
+        handler (TypeMismatch "" msg val) = throwError $ TypeMismatch (show function) msg val
+        handler (NumArgs "" expected found) = throwError $ NumArgs (show function) expected found
+        handler err = throwError err
 
 eval env (List []) = return $ List []
 eval env badform = throwError $ BadSpecialForm "Unrecognized form" badform
@@ -114,7 +119,7 @@ apply (PrimitiveFunc func) args = liftThrows $ func args
 apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args =
     if genericLength params /= genericLength args && varargs == Nothing
-        then throwError $ NumArgs (genericLength params) args
+        then throwError $ NumArgs "" (genericLength params) args
         else (liftIO . bindVars closure . zip params $ args) >>= bindVarArgs varargs >>= evalBody
     where
         bindVarArgs Nothing env = return env

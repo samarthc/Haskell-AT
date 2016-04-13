@@ -64,8 +64,8 @@ instance Eq LispVal where
     (Port p1) == (Port p2) = p1 == p2
     _ == _ = False
 
-data LispError = NumArgs Integer [LispVal]
-               | TypeMismatch String LispVal
+data LispError = NumArgs String Integer [LispVal]
+               | TypeMismatch String String LispVal
                | Parser ParseError
                | BadSpecialForm String LispVal
                | NotFunction String String
@@ -73,8 +73,8 @@ data LispError = NumArgs Integer [LispVal]
                | Default String
 
 instance Show LispError where
-    show (NumArgs expected found) = "Expected " ++ show expected ++ " arg(s); found value(s): " ++ (unwords . map show) found
-    show (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ "; found " ++ show found
+    show (NumArgs name expected found) = name ++ " expected " ++ show expected ++ " arg(s); found value(s): " ++ (unwords . map show) found
+    show (TypeMismatch name expected found) = "Invalid type: " ++ name ++ " expected " ++ expected ++ "; found " ++ show found
     show (Parser parseError) = "Parse error at " ++ show parseError
     show (BadSpecialForm message form) = message ++ ": " ++ show form
     show (NotFunction message func) = message ++ ": " ++ func

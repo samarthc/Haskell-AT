@@ -71,22 +71,22 @@ primitives = [("+", numericBinOp (+)),
               ("equal?", equal)]
 
 numericBinOp :: (Complex Double -> Complex Double -> Complex Double) -> [LispVal] -> Either LispError LispVal
-numericBinOp _ [] = throwError $ NumArgs 2 []
-numericBinOp _ val@[_] = throwError $ NumArgs 2 val
+numericBinOp _ [] = throwError $ NumArgs "" 2 []
+numericBinOp _ val@[_] = throwError $ NumArgs "" 2 val
 numericBinOp op params = mapM unpackNum params >>= return . packNum . foldl1 op
 
 integralBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> Either LispError LispVal
-integralBinOp _ [] = throwError $ NumArgs 2 []
-integralBinOp _ val@[_] = throwError $ NumArgs 2 val
+integralBinOp _ [] = throwError $ NumArgs "" 2 []
+integralBinOp _ val@[_] = throwError $ NumArgs "" 2 val
 integralBinOp op params = mapM unpackIntegral params >>= return . Number . foldl1 op
 
 predicate :: (LispVal -> Bool) -> [LispVal] -> Either LispError LispVal
 predicate pred [val] = return . Bool $ pred val
-predicate pred args = throwError $ NumArgs 1 args
+predicate pred args = throwError $ NumArgs "" 1 args
 
 conversion :: (LispVal -> Either LispError LispVal) -> [LispVal] -> Either LispError LispVal
 conversion conv [val] = conv val
-conversion _ args = throwError $ NumArgs 1 args
+conversion _ args = throwError $ NumArgs "" 1 args
 
 numEq = boolBinOp unpackNum
 numCompare = boolBinOp unpackNoComplex
@@ -95,7 +95,7 @@ strComparei = boolBinOp unpackStri
 
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
 boolBinOp unpacker op args = if length args /= 2
-                             then throwError $ NumArgs 2 args
+                             then throwError $ NumArgs "" 2 args
                              else do left <- (unpacker . head $ args)
                                      right <- (unpacker . head . tail $ args)
                                      return . Bool $ left `op` right
@@ -111,29 +111,29 @@ unpackNum (Number num) = return $ fromIntegral num
 unpackNum (Float num) = return $ realToFrac num
 unpackNum (Ratio num) = return $ fromRational num
 unpackNum (Complex num) = return num
-unpackNum notNum = throwError $ TypeMismatch "number" notNum
+unpackNum notNum = throwError $ TypeMismatch "" "number" notNum
 
 unpackNoComplex :: LispVal -> Either LispError Double
 unpackNoComplex val 
     | realp val = fmap realPart $ unpackNum val
-    | otherwise = throwError $ TypeMismatch "integer, float or rational" val
+    | otherwise = throwError $ TypeMismatch "" "integer, float or rational" val
 
 unpackIntegral :: LispVal -> Either LispError Integer
 unpackIntegral val
     | integerp val = fmap (round . realPart) $ unpackNum val 
-    | otherwise = throwError $ TypeMismatch "integer" val
+    | otherwise = throwError $ TypeMismatch "" "integer" val
 
 unpackBool :: LispVal -> Either LispError Bool
 unpackBool (Bool bool) = return bool
-unpackBool notBool = throwError $ TypeMismatch "bool" notBool
+unpackBool notBool = throwError $ TypeMismatch "" "bool" notBool
 
 unpackStr :: LispVal -> Either LispError String
 unpackStr (String str) = return str
-unpackStr notStr = throwError $ TypeMismatch "string" notStr
+unpackStr notStr = throwError $ TypeMismatch "" "string" notStr
 
 unpackStri :: LispVal -> Either LispError String
 unpackStri (String str) = return . map toLower $ str
-unpackStri notStr = throwError $ TypeMismatch "string" notStr
+unpackStri notStr = throwError $ TypeMismatch "" "string" notStr
 
 symbolp, stringp, boolp, listp, pairp, vectorp, numberp, complexp, realp, rationalp, integerp :: LispVal -> Bool
 
@@ -187,45 +187,45 @@ frac x
 
 sym2str, str2sym, str2list, list2str :: LispVal -> Either LispError LispVal
 sym2str (Atom s) = return $ String s
-sym2str badArg = throwError $ TypeMismatch "symbol" badArg
+sym2str badArg = throwError $ TypeMismatch "" "symbol" badArg
 
 str2sym (String s) = return $ Atom s
-str2sym badArg = throwError $ TypeMismatch "string" badArg
+str2sym badArg = throwError $ TypeMismatch "" "string" badArg
 
 str2list (String str) = return . List . map Character $ str
-str2list badArg = throwError $ TypeMismatch "string" badArg
+str2list badArg = throwError $ TypeMismatch "" "string" badArg
 
 list2str (List []) = return $ String ""
 list2str (List ((Character ch):xs)) = list2str (List xs) >>= unpackStr >>= return . String . (ch:)
-list2str (List (badArg:_)) = throwError $ TypeMismatch "character" badArg
-list2str badArg = throwError $ TypeMismatch "list" badArg
+list2str (List (badArg:_)) = throwError $ TypeMismatch "" "character" badArg
+list2str badArg = throwError $ TypeMismatch "" "list" badArg
 
 makeString :: [LispVal] -> Either LispError LispVal
-makeString [] = throwError $ NumArgs 2 []
+makeString [] = throwError $ NumArgs "" 2 []
 makeString [(Number len)] = return . String $ genericReplicate len '\NUL'
-makeString [badArg] = throwError $ TypeMismatch "integer" badArg
+makeString [badArg] = throwError $ TypeMismatch "" "integer" badArg
 makeString [(Number len), (Character ch)] = return . String $ genericReplicate len ch
-makeString [(Number len), badArg] = throwError $ TypeMismatch "character" badArg
-makeString [badArg, _] = throwError $ TypeMismatch "integer" badArg
-makeString badArgList = throwError $ NumArgs 2 badArgList
+makeString [(Number len), badArg] = throwError $ TypeMismatch "" "character" badArg
+makeString [badArg, _] = throwError $ TypeMismatch "" "integer" badArg
+makeString badArgList = throwError $ NumArgs "" 2 badArgList
 
 newString :: [LispVal] -> Either LispError LispVal
 newString [] = return . String $ ""
 newString ((Character ch):xs) = newString xs >>= unpackStr >>= return . String . (ch:)
-newString (badArg:_) = throwError $ TypeMismatch "character" badArg
+newString (badArg:_) = throwError $ TypeMismatch "" "character" badArg
 
 strLen :: [LispVal] -> Either LispError LispVal
 strLen [(String str)] = return . Number . genericLength $ str
-strLen [badArg] = throwError $ TypeMismatch "string" badArg
-strLen badArgList = throwError $ NumArgs 1 badArgList
+strLen [badArg] = throwError $ TypeMismatch "" "string" badArg
+strLen badArgList = throwError $ NumArgs "" 1 badArgList
 
 strRef :: [LispVal] -> Either LispError LispVal
 strRef [(String str), (Number i)]
     | i>=0 && i < genericLength str = return . Character $ str `genericIndex` i
     | otherwise = throwError $ Default "index out of range"
-strRef [badArg, (Number _)] = throwError $ TypeMismatch "string" badArg
-strRef [(String str), badArg] = throwError $ TypeMismatch "integer" badArg
-strRef badArgList = throwError $ NumArgs 2 badArgList
+strRef [badArg, (Number _)] = throwError $ TypeMismatch "" "string" badArg
+strRef [(String str), badArg] = throwError $ TypeMismatch "" "integer" badArg
+strRef badArgList = throwError $ NumArgs "" 2 badArgList
 
 subStr :: [LispVal] -> Either LispError LispVal
 subStr [(String str), (Number start), (Number end)]
@@ -233,34 +233,34 @@ subStr [(String str), (Number start), (Number end)]
     | end < 0 || end > genericLength str = throwError $ Default "second index out of range"
     | start > end = throwError $ Default "first index cannot be greater than second index"
     | otherwise = return . String . genericTake (end - start) . genericDrop start $ str
-subStr [badArg, (Number _), (Number _)] = throwError $ TypeMismatch "string" badArg
-subStr [_, badArg, (Number _)] = throwError $ TypeMismatch "integer" badArg
-subStr [_, _, badArg] = throwError $ TypeMismatch "integer" badArg
-subStr badArgList = throwError $ NumArgs 3 badArgList
+subStr [badArg, (Number _), (Number _)] = throwError $ TypeMismatch "" "string" badArg
+subStr [_, badArg, (Number _)] = throwError $ TypeMismatch "" "integer" badArg
+subStr [_, _, badArg] = throwError $ TypeMismatch "" "integer" badArg
+subStr badArgList = throwError $ NumArgs "" 3 badArgList
 
 strApp :: [LispVal] -> Either LispError LispVal
 strApp [] = return . String $ ""
 strApp ((String str):xs) = strApp xs >>= unpackStr >>= return . String . (str++)
-strApp (badArg:_) = throwError $ TypeMismatch "string" badArg
+strApp (badArg:_) = throwError $ TypeMismatch "" "string" badArg
 
 car :: [LispVal] -> Either LispError LispVal
 car [List (x:xs)] = return x
 car [DottedList (x:xs) _] = return x
-car [badArg] = throwError $ TypeMismatch "pair" badArg
-car badArgList = throwError $ NumArgs 1 badArgList
+car [badArg] = throwError $ TypeMismatch "" "pair" badArg
+car badArgList = throwError $ NumArgs "" 1 badArgList
 
 cdr :: [LispVal] -> Either LispError LispVal
 cdr [List (_ : xs)] = return $ List xs
 cdr [DottedList [_] x] = return x
 cdr [DottedList (_:xs) x] = return $ DottedList xs x
-cdr [badArg] = throwError $ TypeMismatch "pair" badArg
-cdr badArgList = throwError $ NumArgs 1 badArgList
+cdr [badArg] = throwError $ TypeMismatch "" "pair" badArg
+cdr badArgList = throwError $ NumArgs "" 1 badArgList
 
 cons :: [LispVal] -> Either LispError LispVal
 cons [x, List xs] = return $ List (x:xs)
 cons [x, DottedList xs last] = return $ DottedList (x:xs) last
 cons [x, y] = return $ DottedList [x] y
-cons badArgList = throwError $ NumArgs 2 badArgList
+cons badArgList = throwError $ NumArgs "" 2 badArgList
 
 eqv :: [LispVal] -> Either LispError LispVal
 eqv [(Bool arg1), (Bool arg2)] = return . Bool $ arg1 == arg2
@@ -269,7 +269,7 @@ eqv [(String arg1), (String arg2)] = return . Bool $ arg1 == arg2
 eqv [(Atom arg1), (Atom arg2)] = return . Bool $ arg1 == arg2
 eqv [(List []), (List [])] = return . Bool $ True
 eqv [_, _] = return . Bool $ False
-eqv badArgList = throwError $ NumArgs 2 badArgList
+eqv badArgList = throwError $ NumArgs "" 2 badArgList
 
 equal :: [LispVal] -> Either LispError LispVal
 equal val@[(Bool _), (Bool _)] = eqv val
@@ -286,7 +286,7 @@ equal [(List (x:xs)), (List (y:ys))] = do
     then equal [List xs, List ys]
     else return . Bool $ False
 equal [_, _] = return . Bool $ False
-equal badArgList = throwError $ NumArgs 2 badArgList
+equal badArgList = throwError $ NumArgs "" 2 badArgList
 
 ioPrimitives :: [(String, [LispVal] -> ErrorT LispError IO LispVal)]
 ioPrimitives = [("open-input-file", makePort ReadMode),
@@ -300,19 +300,19 @@ ioPrimitives = [("open-input-file", makePort ReadMode),
 
 makePort :: IOMode -> [LispVal] -> ErrorT LispError IO LispVal
 makePort mode [String filename] = fmap Port . liftIO $ openFile filename mode
-makePort _ [badArg] = throwError $ TypeMismatch "string" badArg
-makePort _ badArgList = throwError $ NumArgs 1 badArgList
+makePort _ [badArg] = throwError $ TypeMismatch "" "string" badArg
+makePort _ badArgList = throwError $ NumArgs "" 1 badArgList
 
 closePort :: [LispVal] -> ErrorT LispError IO LispVal
 closePort [Port port] = liftIO $ hClose port >> (return Unspecified)
-closePort [badArg] = throwError $ TypeMismatch "port" badArg
-closePort badArgList = throwError $ NumArgs 1 badArgList
+closePort [badArg] = throwError $ TypeMismatch "" "port" badArg
+closePort badArgList = throwError $ NumArgs "" 1 badArgList
 
 readProc :: [LispVal] -> ErrorT LispError IO LispVal
 readProc [] = readProc [Port stdin]
 readProc [Port port] = (liftIO $ hGetLine port) >>= (liftThrows . readExpr)
-readProc [badArg] = throwError $ TypeMismatch "port" badArg
-readProc badArgList = throwError $ NumArgs 1 badArgList
+readProc [badArg] = throwError $ TypeMismatch "" "port" badArg
+readProc badArgList = throwError $ NumArgs "" 1 badArgList
 
 writeProc :: [LispVal] -> ErrorT LispError IO LispVal
 writeProc [obj] = writeProc [obj, Port stdout]
@@ -320,8 +320,8 @@ writeProc [obj, Port port] = liftIO $ hPrint port obj >> return Unspecified
 
 readContents :: [LispVal] -> ErrorT LispError IO LispVal
 readContents [String filename] = fmap String . liftIO $ readFile filename
-readContents [badArg] = throwError $ TypeMismatch "string" badArg
-readContents badArgList = throwError $ NumArgs 1 badArgList
+readContents [badArg] = throwError $ TypeMismatch "" "string" badArg
+readContents badArgList = throwError $ NumArgs "" 1 badArgList
 
 
 readerr :: String -> IO (Either LispError [LispVal])
@@ -341,6 +341,6 @@ load filename = liftThrows (unsafePerformIO a)
 
 readAll :: [LispVal] -> ErrorT LispError IO LispVal
 readAll [String filename] = fmap List $ load filename
-readAll [badArg] = throwError $ TypeMismatch "string" badArg
-readAll badArgList = throwError $ NumArgs 1 badArgList
+readAll [badArg] = throwError $ TypeMismatch "" "string" badArg
+readAll badArgList = throwError $ NumArgs "" 1 badArgList
 
