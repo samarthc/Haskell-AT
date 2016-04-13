@@ -14,6 +14,9 @@ import System.IO
 import System.IO.Unsafe
 import Control.Exception
 
+-- | Enumeration denoting parameter for up-casting
+data Conv = Comp | Dbl | Rat | Intgr
+
 primitiveBindings :: IO Env
 primitiveBindings = nullEnv >>= (flip bindVars $ map (makeFunc PrimitiveFunc) primitives ++ map (makeFunc IOFunc) ioPrimitives)
     where
@@ -55,6 +58,11 @@ primitives = [("+", numericBinOp (+)),
               ("string-ci>?", strComparei (>)),
               ("string-ci<=?", strComparei (<=)),
               ("string-ci>=?", strComparei (>=)),
+              ("char=?", charCompare (==)),
+              ("char<?", charCompare (<)),
+              ("char>?", charCompare (>)),
+              ("char<=?", charCompare (<=)),
+              ("char>=?", charCompare (>=)),
               ("make-string", makeString),
               ("string", newString),
               ("string-length", strLen),
@@ -92,6 +100,7 @@ numEq = boolBinOp unpackNum
 numCompare = boolBinOp unpackNoComplex
 strCompare = boolBinOp unpackStr
 strComparei = boolBinOp unpackStri
+charCompare = boolBinOp unpackChar
 
 boolBinOp :: (LispVal -> Either LispError a) -> (a -> a -> Bool) -> [LispVal] -> Either LispError LispVal
 boolBinOp unpacker op args = if length args /= 2
@@ -134,6 +143,10 @@ unpackStr notStr = throwError $ TypeMismatch "" "string" notStr
 unpackStri :: LispVal -> Either LispError String
 unpackStri (String str) = return . map toLower $ str
 unpackStri notStr = throwError $ TypeMismatch "" "string" notStr
+
+unpackChar :: LispVal -> Either LispError Char
+unpackChar (Character ch) = return ch
+unpackChar notChar = throwError $ TypeMismatch "" "character" notChar
 
 symbolp, stringp, boolp, listp, pairp, vectorp, numberp, complexp, realp, rationalp, integerp :: LispVal -> Bool
 
