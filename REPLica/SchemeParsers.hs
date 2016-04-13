@@ -22,10 +22,18 @@ readParametrized parser input = case parse parser "" input of
     Right val -> return val
 
 readExpr :: String -> Either LispError LispVal
-readExpr = readParametrized (spaces >> parseExpr)
+readExpr = readParametrized (spaces >> parseExpr >>= noRemainingInput)
 
 readExprList :: String -> Either LispError [LispVal]
-readExprList = readParametrized (parseExpr `endBy` spaces)
+readExprList = readParametrized ((parseExpr >>= noRemainingInput) `endBy` spaces)
+
+noRemainingInput :: LispVal -> Parser LispVal
+noRemainingInput parsed = do
+    spaces
+    remaining <- getInput
+    if (null remaining)
+    then return parsed
+    else fail "Malformed expression (perhaps a missing open parenthesis)"
 
 symbol :: Parser Char
 symbol = oneOf "~!@$%^&*-_=+<>?/:|"
