@@ -121,3 +121,4 @@ apply (Func params varargs body closure) args =
         bindVarArgs (Just argName) env = liftIO $ bindVars env [(argName, List remainingArgs)]
         remainingArgs = genericDrop (genericLength params) args
         evalBody env = fmap last $ mapM (eval env) body
+apply notApplicable args = throwError . NotFunction "Not applicable object" $ show notApplicable
