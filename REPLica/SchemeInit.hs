@@ -346,16 +346,16 @@ readerr filename = do
 	             (Right filecontent) -> return $ (readExprList filecontent)
 	             (Left (ex :: IOException)) -> return $ Left (Default (show ex) )
 
-load :: String -> ErrorT LispError IO [LispVal]
-load filename = liftThrows (unsafePerformIO a)
+load :: LispVal -> ErrorT LispError IO [LispVal]
+load (String filename) = liftThrows (unsafePerformIO a)
          where a = do 
 	            val <- (readerr filename) 
 	 	    case val of
 		        (Left error) -> return (Left error)
 		 	(Right vals) -> return (Right vals)
+load badArg = throwError $ TypeMismatch "" "string" badArg
 
 readAll :: [LispVal] -> ErrorT LispError IO LispVal
-readAll [String filename] = fmap List $ load filename
-readAll [badArg] = throwError $ TypeMismatch "" "string" badArg
+readAll [val] = fmap List $ load val
 readAll badArgList = throwError $ NumArgs "" 1 badArgList
 

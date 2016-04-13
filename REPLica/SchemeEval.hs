@@ -90,7 +90,7 @@ eval env (List (Atom "lambda" : DottedList params varArgs : body)) = makeVarFunc
 
 eval env (List (Atom "lambda" : vararg@(Atom _) : body)) = makeVarFunc vararg env [] body
 
-eval env (List [Atom "load", String filename]) = load filename >>= fmap last . mapM (eval env)
+eval env (List [Atom "load", name]) = eval env name >>= load >>= fmap last . mapM (eval env)
 
 eval env (List [Atom "apply", func, args]) = do
     function <- eval env func
