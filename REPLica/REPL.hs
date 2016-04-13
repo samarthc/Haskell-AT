@@ -15,12 +15,15 @@ main :: IO ()
 main = do
     args <- getArgs
     env <- primitiveBindings
+    loadStdLib env
     case args of
-        [] -> runRepl env
-        [filename] -> evalAndPrint env (Just $ "(load \"" ++ filename ++"\")")  >> runRepl env
-        otherwise -> do
-            putStrLn "Expected just one filename; no files loaded"
-            runRepl env
+        [] -> return ()
+        [filename] -> evalAndPrint env (Just $ "(load \"" ++ filename ++"\")")
+        otherwise -> putStrLn "Expected just one filename; no files loaded"
+    runRepl env
+
+loadStdLib :: Env -> IO ()
+loadStdLib env = evalAndPrint env $ Just "(load \"stdlib.scm\")"
 
 readPrompt :: String -> IO (Maybe String)
 readPrompt prompt = runInputT defaultSettings $ getInputLine prompt
