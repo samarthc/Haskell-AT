@@ -12,6 +12,7 @@ import Data.IORef
 import Data.List (genericTake, genericLength, genericDrop, genericIndex, genericReplicate)
 import System.IO
 import System.IO.Unsafe
+import System.Random
 import Control.Exception
 
 -- | Enumeration denoting parameter for up-casting
@@ -311,7 +312,8 @@ ioPrimitives = [("open-input-file", makePort ReadMode),
                 ("read", readProc),
                 ("write", writeProc),
                 ("read-contents", readContents),
-                ("read-all", readAll)]
+                ("read-all", readAll),
+                ("random", rand)]
 
 makePort :: IOMode -> [LispVal] -> ErrorT LispError IO LispVal
 makePort mode [String filename] = fmap Port . liftIO $ openFile filename mode
@@ -359,3 +361,7 @@ readAll :: [LispVal] -> ErrorT LispError IO LispVal
 readAll [val] = fmap List $ load val
 readAll badArgList = throwError $ NumArgs "" 1 badArgList
 
+rand :: [LispVal] -> ErrorT LispError IO LispVal
+rand [Number mod] = liftIO . fmap Number $ randomRIO (0, mod-1)
+rand [badArg] = throwError $ TypeMismatch "" "number" badArg
+rand badArgList = throwError $ NumArgs "" 1 badArgList

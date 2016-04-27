@@ -26,6 +26,7 @@
 (define fold foldl)
 (define reduce foldr)
 
+;iterate func on init until (pred init) evaluates to true
 (define (unfold func init pred)
   (if (pred init)
       (cons init '())
